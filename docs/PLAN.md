@@ -180,6 +180,31 @@ Moved to [CHANGELOG.md](CHANGELOG.md).
 
 Moved to [CHANGELOG.md](CHANGELOG.md).
 
+### Escape the Box activity (revisit)
+
+The "escape the box" challenge currently has no way to be triggered from the Neo UI. The attack infrastructure (`chart/target-apps/`, `chart/attack/`) was removed from the chart structure but the agent-side code (`prompt.reset-attack`, `net-monitor.sh`, attack phase detection) still exists. Need to revisit how this activity is started, monitored, and reset.
+
+- [ ] Determine how to trigger the escape challenge from the UI (button? auto-prompt? separate deploy step?)
+- [ ] Review if `prompts/escape.txt` is still used and how it gets injected into the agent
+- [ ] Clarify if target-apps and attack charts still exist elsewhere or need to be recreated
+- [ ] Ensure the Map tab attack phase visualization still works end-to-end
+- [ ] Document the full facilitator workflow: deploy target → trigger challenge → observe → reset
+
+### Claude Code task integration
+
+Research and integrate Claude Code's native task system (`~/.claude/tasks/`) into Neo.
+
+- [ ] Research: what conditions enable task creation (env var `CLAUDE_CODE_TASK_LIST_ID`, version >= v2.1.16, `CLAUDE_CODE_ENABLE_TASKS`)
+- [ ] Research: confirm task file path inside our container (`/opt/app-root/src/.claude/tasks/` = volume `claude-workspace`)
+- [ ] Research: determine if tasks appear in the `claude.jsonl` stream as `TaskCreate`/`TaskUpdate` tool-use events
+- [ ] Research: investigate `~/.claude/projects/` folder (session JSONL logs, `sessions-index.json`, custom titles, slugs, project paths)
+- [ ] Research: investigate `~/.claude/plans/` folder (what gets stored there, format, lifecycle)
+- [ ] Research: investigate `~/.claude/sessions/` folder (session metadata, how it relates to projects/)
+- [ ] Decide approach: watch task files on disk (chokidar on `/data/claude-workspace/tasks/`) vs. parse tool-use events from JSONL
+- [ ] Expose task state via API: `GET /api/tasks` (list), `GET /api/tasks/:id` (detail)
+- [ ] Build task viewer component in UI (Kanban or list view with status + dependencies)
+- [ ] Configure agent container: set `CLAUDE_CODE_TASK_LIST_ID` env var in deployment (so tasks persist across sessions)
+
 ### Session history
 
 Record and replay past agent sessions:
