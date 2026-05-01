@@ -4,6 +4,66 @@
 
 ---
 
+## Monitoring, Metrics, and Observability
+
+**Date:** 2026-05-01
+**Status:** Done
+
+Added agent-level metrics collection, Prometheus and JSON stats endpoints, a Helm ServiceMonitor, and a full audit logging system with UI viewer.
+
+### Agent metrics
+
+`MetricsCollector` wired into the relay broadcast path extracts token usage, cost, latency, tool call counts, and error rates from JSONL events. Uses a fast-path string `includes()` pre-filter — only `result`, `tool_use`, `init`, and `api_retry` lines trigger `JSON.parse`; the 99%+ of streaming text/thinking lines are skipped with zero parsing overhead.
+
+- **`GET /api/metrics`** — Prometheus-compatible `text/plain` exposition (counters: `neo_tokens_input_total`, `neo_tokens_output_total`, `neo_cost_usd_total`, `neo_prompts_total`, `neo_sessions_total`, `neo_tool_calls_total{name}`, `neo_errors_total{category}`, `neo_response_duration_seconds_sum/count`; gauges: `neo_clients_connected`, `neo_llm_available`). Placed before auth in the router for cluster-internal Prometheus scraping.
+- **`GET /api/stats`** — JSON summary with session, token, cost, latency, tool, error, and system stats. Behind auth.
+
+### Infrastructure metrics
+
+- `ServiceMonitor` template in Helm chart, gated on `metrics.enabled` (default `false`)
+- Configurable scrape interval and custom labels via `values.yaml`
+
+### Audit log
+
+`AuditLogger` with in-memory ring buffer (1000 entries) + batched `appendFileSync` to `audit.jsonl`. Fire-and-forget `log()` calls on: prompt queue, stop, reset, file writes, prompt completions, and errors. Size-based rotation at 10MB (configurable via `AUDIT_MAX_SIZE_MB`).
+
+- **`GET /api/audit`** — paginated, filterable by event type and time range. Reads from ring buffer (no file I/O per request). Input validation on limit/offset.
+- **Audit log viewer** in Settings drawer — table with event type filter, color-coded badges, and pagination.
+
+### Shutdown handling
+
+Added `SIGTERM`/`SIGINT` handlers in relay to flush pending audit events and persist state on process shutdown.
+
+### Changes
+
+| File | Change |
+|------|--------|
+| `ui/relay/metrics/collector.js` | New: MetricsCollector with fast-path pre-filter |
+| `ui/relay/metrics/prometheus.js` | New: Prometheus text formatter |
+| `ui/relay/api/metrics.js` | New: `GET /api/metrics` handler |
+| `ui/relay/api/stats.js` | New: `GET /api/stats` handler |
+| `ui/relay/audit/logger.js` | New: AuditLogger with ring buffer + file persistence |
+| `ui/relay/api/audit.js` | New: `GET /api/audit` handler with input validation |
+| `ui/src/components/AuditLogViewer.tsx` | New: audit log viewer component |
+| `ui/src/services/auditApi.ts` | New: audit API client |
+| `chart/templates/servicemonitor.yaml` | New: conditional ServiceMonitor |
+| `ui/relay.mjs` | Wired MetricsCollector, AuditLogger, shutdown handlers |
+| `ui/relay/router.js` | Added 3 routes (`/api/metrics`, `/api/stats`, `/api/audit`) |
+| `ui/relay/api/chat.js` | Audit logging on prompt/stop/reset, metrics prompt count |
+| `ui/relay/api/files.js` | Audit logging on file writes |
+| `ui/src/components/SettingsDrawer.tsx` | Added AuditLogViewer section |
+| `ui/src/styles/neo.css` | Audit log viewer styles |
+| `chart/values.yaml` | Added `metrics` config block |
+
+### Tests
+
+- `ui/relay/__tests__/collector.test.js`: 12 tests (counters, fast-path skip, accumulation, reset, tool cap, malformed JSON)
+- `ui/relay/__tests__/prometheus.test.js`: 5 tests (empty state, tool labels, error labels, escaping, duration counters)
+- `ui/relay/__tests__/audit.test.js`: 7 tests (ring buffer, ordering, filtering, pagination, file flush, hydration)
+- `tests/helm/template.test.sh`: +4 assertions (ServiceMonitor conditional rendering, path, port, custom interval)
+
+---
+
 ## Basic Auth for Neo UI and Web Terminal
 
 **Date:** 2026-04-30

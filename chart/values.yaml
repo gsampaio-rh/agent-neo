@@ -89,3 +89,8 @@ build:
 route:
   ui:
     timeout: "300s"
+
+metrics:
+  enabled: false
+  interval: "30s"
+  labels: {}

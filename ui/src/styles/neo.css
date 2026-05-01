@@ -3438,6 +3438,118 @@ body {
 @keyframes map-edge-flow-attack  { to { stroke-dashoffset: -9; } }
 @keyframes map-edge-flow-exploit { to { stroke-dashoffset: -12; } }
 
+/* ── Audit Log Viewer ── */
+.audit-log__controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.audit-log__filter {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 4px 8px;
+}
+
+.audit-log__total {
+  font-size: 9px;
+  color: var(--green-dim);
+  font-family: var(--font-mono);
+}
+
+.audit-log__table-wrap {
+  overflow-x: auto;
+  max-height: 280px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+}
+
+.audit-log__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: 9px;
+}
+
+.audit-log__table th {
+  text-align: left;
+  padding: 6px 8px;
+  color: var(--green);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: var(--bg-panel);
+}
+
+.audit-log__table td {
+  padding: 4px 8px;
+  border-bottom: 1px solid rgba(58, 58, 92, 0.4);
+  vertical-align: top;
+}
+
+.audit-log__cell--time {
+  white-space: nowrap;
+  color: var(--green-dim);
+}
+
+.audit-log__cell--detail {
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.audit-log__badge {
+  display: inline-block;
+  padding: 1px 6px;
+  font-size: 8px;
+  border: 1px solid;
+  white-space: nowrap;
+}
+
+.audit-log__badge--green  { color: var(--green); border-color: var(--green-dim); }
+.audit-log__badge--red    { color: var(--red); border-color: var(--red); }
+.audit-log__badge--cyan   { color: var(--cyan); border-color: var(--cyan); }
+.audit-log__badge--yellow { color: var(--yellow); border-color: var(--yellow); }
+.audit-log__badge--default { color: var(--text); border-color: var(--border); }
+
+.audit-log__pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.audit-log__page-btn {
+  background: var(--bg);
+  color: var(--green);
+  border: 1px solid var(--border);
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  padding: 4px 12px;
+  cursor: pointer;
+}
+
+.audit-log__page-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.audit-log__page-btn:hover:not(:disabled) {
+  border-color: var(--green);
+}
+
+.audit-log__page-info {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--green-dim);
+}
+
 /* ── Pause all animations when browser tab is hidden ── */
 .app--hidden *,
 .app--hidden *::before,

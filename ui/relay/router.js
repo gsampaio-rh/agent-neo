@@ -3,11 +3,14 @@ import { handleStatus } from './api/status.js';
 import { handleHealth } from './api/health.js';
 import { handleGetState, handleResetState } from './api/state.js';
 import { handleListFiles, handleReadFile, handleWriteFile } from './api/files.js';
+import { handleMetrics } from './api/metrics.js';
+import { handleStats } from './api/stats.js';
+import { handleAudit } from './api/audit.js';
 import { createAuthCheck } from './lib/auth.js';
 import { serveStatic } from './static.js';
 
-export function createRouter({ hub, config, stateManager }) {
-  const ctx = { promptDir: config.dirPath ? config.promptDir : null, hub, stateManager, config };
+export function createRouter({ hub, config, stateManager, metricsCollector, auditLogger }) {
+  const ctx = { promptDir: config.dirPath ? config.promptDir : null, hub, stateManager, config, metricsCollector, auditLogger };
   const checkAuth = createAuthCheck(config.authUser, config.authPass);
 
   return async function route(req, res) {
@@ -23,12 +26,18 @@ export function createRouter({ hub, config, stateManager }) {
 
     if (req.url === '/health') return handleHealth(req, res, ctx);
 
+    // Prometheus scraper uses cluster-internal networking — no Basic Auth.
+    // Exposes only aggregate counters, no PII or prompt content.
+    if (req.url === '/api/metrics' && req.method === 'GET') return handleMetrics(req, res, ctx);
+
     if (checkAuth && !checkAuth(req, res)) return;
 
     if (req.url === '/api/chat' && req.method === 'POST') return handleChat(req, res, ctx);
     if (req.url === '/api/stop' && req.method === 'POST') return handleStop(req, res, ctx);
     if (req.url === '/api/reset' && req.method === 'POST') return handleReset(req, res, ctx);
     if (req.url === '/api/status' && req.method === 'GET') return handleStatus(req, res, ctx);
+    if (req.url === '/api/stats' && req.method === 'GET') return handleStats(req, res, ctx);
+    if (req.url === '/api/audit' && req.method === 'GET') return handleAudit(req, res, ctx);
     if (req.url === '/api/state' && req.method === 'GET') return handleGetState(req, res, ctx);
     if (req.url === '/api/state/reset' && req.method === 'POST') return handleResetState(req, res, ctx);
     if (req.url === '/api/files' && req.method === 'GET') return handleListFiles(req, res, ctx);

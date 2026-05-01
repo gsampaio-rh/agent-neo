@@ -96,6 +96,26 @@ assert_pass "NEO_AUTH_PASS env in deployment" grep -q 'NEO_AUTH_PASS' "$TMPDIR_T
 # TTYD_CREDENTIAL from auth Secret when auth is set
 assert_pass "TTYD_CREDENTIAL from auth Secret" grep -q 'neo-auth' "$TMPDIR_TEST/auth.yaml"
 
+# --- ServiceMonitor tests ---
+
+# No ServiceMonitor when metrics.enabled is false (default)
+assert_fail "no ServiceMonitor when metrics.enabled false" grep -q 'kind: ServiceMonitor' "$TMPDIR_TEST/full.yaml"
+
+# ServiceMonitor present when metrics.enabled is true
+helm template test-release "$CHART_DIR" \
+  --set config.anthropicBaseUrl=http://test.example.com \
+  --set metrics.enabled=true > "$TMPDIR_TEST/metrics.yaml" 2>&1
+assert_pass "ServiceMonitor rendered when metrics.enabled true" grep -q 'kind: ServiceMonitor' "$TMPDIR_TEST/metrics.yaml"
+assert_pass "ServiceMonitor targets /api/metrics path" grep -q '/api/metrics' "$TMPDIR_TEST/metrics.yaml"
+assert_pass "ServiceMonitor targets neo-ui port" grep -q 'neo-ui' "$TMPDIR_TEST/metrics.yaml"
+
+# Custom metrics interval
+helm template test-release "$CHART_DIR" \
+  --set config.anthropicBaseUrl=http://test.example.com \
+  --set metrics.enabled=true \
+  --set metrics.interval=15s > "$TMPDIR_TEST/metrics-interval.yaml" 2>&1
+assert_pass "custom metrics interval propagated" grep -q '15s' "$TMPDIR_TEST/metrics-interval.yaml"
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]] || exit 1

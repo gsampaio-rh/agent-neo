@@ -1,0 +1,20 @@
+{{- if .Values.metrics.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "neo.fullname" . }}
+  labels:
+    {{- include "neo.labels" . | nindent 4 }}
+    {{- with .Values.metrics.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "neo.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: neo-ui
+  endpoints:
+    - port: neo-ui
+      path: /api/metrics
+      interval: {{ .Values.metrics.interval | default "30s" }}
+{{- end }}

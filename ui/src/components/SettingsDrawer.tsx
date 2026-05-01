@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { fetchStatus, type EnvironmentInfo } from '../services/chatApi';
 import { listFiles, readFile, type FileNode } from '../services/filesApi';
+import { AuditLogViewer } from './AuditLogViewer';
 
 interface DrawerData {
   claudeMd: string | null;
@@ -120,6 +121,8 @@ export function SettingsDrawer() {
                   </div>
                 )}
               </div>
+
+              <AuditLogViewer />
             </div>
           </div>
         </div>

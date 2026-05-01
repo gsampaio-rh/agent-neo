@@ -165,36 +165,20 @@ Progress: [..........] 0%
 ## Monitoring, Metrics, and Observability
 
 ```
-Progress: [..........] 0%
+Progress: [######....] 60%
 ```
 
-### Agent metrics
+### Agent metrics — DONE
 
-Instrument relay and event stream to extract agent-level metrics:
+Moved to [CHANGELOG.md](CHANGELOG.md).
 
-- [ ] Extract token counts (input/output) from `stream-json` result events
-- [ ] Track response time (prompt-to-completion latency)
-- [ ] Count tool calls by name, success/failure rate
-- [ ] Track agent errors (crashes, permission denials, timeouts)
-- [ ] Session stats (prompts per session, total sessions, active time)
-- [ ] Expose `GET /api/metrics` — Prometheus-compatible text format
-- [ ] Expose `GET /api/stats` — JSON summary for UI dashboard
+### Infrastructure metrics — DONE
 
-### Infrastructure metrics
+Moved to [CHANGELOG.md](CHANGELOG.md).
 
-- [ ] Add `ServiceMonitor` to Helm chart (opt-in via `metrics.enabled`)
-- [ ] Configure scraping of relay `/api/metrics` endpoint
-- [ ] Add custom metrics labels: `release`, `namespace`, `component`
+### Audit log — DONE
 
-### Audit log
-
-Persistent log of all user and system actions:
-
-- [ ] Define audit event schema (login, prompts, config changes, start/stop/reset)
-- [ ] Write audit events to `audit.jsonl` on shared volume
-- [ ] Implement `GET /api/audit` — paginated, filterable by event type and time range
-- [ ] Build audit log viewer page in UI with filters and search
-- [ ] Add configurable retention (max size / rotation via `values.yaml`)
+Moved to [CHANGELOG.md](CHANGELOG.md).
 
 ### Session history
 

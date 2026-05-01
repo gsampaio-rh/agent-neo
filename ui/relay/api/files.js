@@ -81,7 +81,7 @@ function readBody(req) {
   });
 }
 
-export function handleWriteFile(req, res, { config }) {
+export function handleWriteFile(req, res, { config, auditLogger }) {
   const base = config.claudeWorkspaceDir;
   const filePath = decodeURIComponent(req.url.replace('/api/files/', ''));
   const resolved = safePath(base, filePath);
@@ -99,6 +99,7 @@ export function handleWriteFile(req, res, { config }) {
       const dir = dirname(resolved);
       if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
       writeFileSync(resolved, content, 'utf-8');
+      if (auditLogger) auditLogger.log('config_change', 'user', `File written: ${filePath}`, { path: filePath, size: content.length });
       return jsonResponse(res, 200, { status: 'ok', path: filePath });
     } catch (err) {
       const status = err.message === 'body too large' ? 413 : 500;
