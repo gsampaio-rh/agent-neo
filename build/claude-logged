@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# Wrapper that runs claude -p and tees structured output to a log file.
+# Uses --continue to maintain conversation context across invocations.
+#
+# Session marker: .session-started
+#   Created after the first successful claude invocation. When present,
+#   subsequent calls use --continue to maintain conversation history.
+#   Deleted by prompt-watcher on reset (prompt.reset signal).
+set -euo pipefail
+
+LOG_DIR="${CLAUDE_LOG_DIR:-/tmp/claude-logs}"
+mkdir -p "$LOG_DIR"
+
+LOG_FILE="$LOG_DIR/claude.jsonl"
+SESSION_MARKER="$LOG_DIR/.session-started"
+
+log() { echo "[claude-logged $(date -u +%Y-%m-%dT%H:%M:%SZ)] $*" >&2; }
+
+PERM_ARGS=()
+case "${CLAUDE_PERMISSION_MODE:-default}" in
+  dangerously-skip-permissions) PERM_ARGS+=(--dangerously-skip-permissions) ;;
+  default)                      ;; # no extra flags
+  *)                            PERM_ARGS+=(--permission-mode "$CLAUDE_PERMISSION_MODE") ;;
+esac
+
+CONTINUE_ARGS=()
+if [[ -f "$SESSION_MARKER" ]]; then
+  CONTINUE_ARGS+=(--continue)
+  log "Continuing existing session"
+else
+  log "Starting new session"
+fi
+
+log "Running claude with ${#@} arg(s)"
+claude -p --verbose --output-format stream-json ${CONTINUE_ARGS[@]+"${CONTINUE_ARGS[@]}"} ${PERM_ARGS[@]+"${PERM_ARGS[@]}"} "$@" | tee -a "$LOG_FILE"
+EXIT_CODE=${PIPESTATUS[0]}
+
+touch "$SESSION_MARKER"
+log "Finished with exit code $EXIT_CODE"
+exit "$EXIT_CODE"

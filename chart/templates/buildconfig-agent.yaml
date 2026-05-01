@@ -1,0 +1,20 @@
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: {{ .Values.image.agent.name }}
+  labels:
+    {{- include "neo.labels" . | nindent 4 }}
+    app.kubernetes.io/component: agent
+spec:
+  output:
+    to:
+      kind: ImageStreamTag
+      name: {{ .Values.image.agent.name }}:{{ .Values.image.agent.tag }}
+  source:
+    type: Binary
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: Dockerfile
+  resources:
+    {{- toYaml .Values.build.agent.resources | nindent 4 }}

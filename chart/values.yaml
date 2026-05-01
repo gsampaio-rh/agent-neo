@@ -1,0 +1,91 @@
+replicaCount: 1
+
+image:
+  registry: image-registry.openshift-image-registry.svc:5000
+  agent:
+    name: neo-agent
+    tag: latest
+  ui:
+    name: neo-ui
+    tag: latest
+
+config:
+  anthropicBaseUrl: ""
+  modelName: glm47-flash
+  permissionMode: dangerously-skip-permissions
+  maxOutputTokens: "16384"
+  maxThinkingTokens: "0"
+
+ports:
+  webTerminal: 7681
+  ui: 3458
+
+probes:
+  agent:
+    startup:
+      initialDelaySeconds: 5
+      periodSeconds: 5
+      failureThreshold: 12
+      timeoutSeconds: 5
+    liveness:
+      periodSeconds: 60
+      timeoutSeconds: 5
+      failureThreshold: 3
+    readiness:
+      periodSeconds: 10
+      timeoutSeconds: 2
+      failureThreshold: 3
+  ui:
+    liveness:
+      initialDelaySeconds: 5
+      periodSeconds: 30
+      timeoutSeconds: 3
+    readiness:
+      initialDelaySeconds: 3
+      periodSeconds: 10
+      timeoutSeconds: 3
+
+auth:
+  username: ""
+  password: ""
+
+ttyd:
+  credential: ""
+
+resources:
+  agent:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 2Gi
+  ui:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+build:
+  agent:
+    resources:
+      requests:
+        cpu: 500m
+        memory: 2Gi
+      limits:
+        cpu: "2"
+        memory: 4Gi
+  ui:
+    resources:
+      requests:
+        cpu: 500m
+        memory: 2Gi
+      limits:
+        cpu: "2"
+        memory: 4Gi
+
+route:
+  ui:
+    timeout: "300s"

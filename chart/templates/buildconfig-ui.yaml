@@ -1,0 +1,20 @@
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: {{ .Values.image.ui.name }}
+  labels:
+    {{- include "neo.labels" . | nindent 4 }}
+    app.kubernetes.io/component: neo-ui
+spec:
+  output:
+    to:
+      kind: ImageStreamTag
+      name: {{ .Values.image.ui.name }}:{{ .Values.image.ui.tag }}
+  source:
+    type: Binary
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: Dockerfile
+  resources:
+    {{- toYaml .Values.build.ui.resources | nindent 4 }}

@@ -1,0 +1,7 @@
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: {{ .Values.image.agent.name }}
+  labels:
+    {{- include "neo.labels" . | nindent 4 }}
+    app.kubernetes.io/component: agent

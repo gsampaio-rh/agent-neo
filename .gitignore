@@ -1,0 +1,23 @@
+# Dependencies
+ui/node_modules/
+
+# Build artifacts
+ui/dist/
+ui/.vite/
+ui/tsconfig.tsbuildinfo
+
+# Environment
+.env
+.env.local
+
+# Local dev data
+.dev-data/
+
+# OS
+.DS_Store
+
+# Editor
+.cursor/
+.idea/
+*.swp
+*.swo

@@ -1,0 +1,155 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "neo.fullname" . }}
+  labels:
+    {{- include "neo.labels" . | nindent 4 }}
+    app.kubernetes.io/component: neo-agent
+    app.openshift.io/runtime: claude-code
+  annotations:
+    openshift.io/display-name: "Neo"
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "neo.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "neo.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/part-of: the-red-matrix
+    spec:
+      serviceAccountName: {{ include "neo.fullname" . }}
+      volumes:
+        - name: claude-workspace
+          emptyDir: {}
+        - name: claude-logs
+          emptyDir: {}
+      containers:
+        - name: claude-code
+          image: {{ include "neo.agentImage" . }}
+          ports:
+            - containerPort: {{ .Values.ports.webTerminal }}
+              name: web-terminal
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: {{ include "neo.fullname" . }}-config
+          env:
+            - name: ANTHROPIC_API_KEY
+              value: "not-needed"
+            {{- if .Values.auth.username }}
+            - name: TTYD_CREDENTIAL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "neo.fullname" . }}-auth
+                  key: ttyd-credential
+            {{- else if .Values.ttyd.credential }}
+            - name: TTYD_CREDENTIAL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "neo.fullname" . }}-ttyd
+                  key: credential
+            {{- end }}
+          volumeMounts:
+            - name: claude-workspace
+              mountPath: /opt/app-root/src/.claude
+            - name: claude-logs
+              mountPath: /tmp/claude-logs
+          resources:
+            {{- toYaml .Values.resources.agent | nindent 12 }}
+          startupProbe:
+            exec:
+              command: ["claude", "--version"]
+            initialDelaySeconds: {{ .Values.probes.agent.startup.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.agent.startup.periodSeconds }}
+            failureThreshold: {{ .Values.probes.agent.startup.failureThreshold }}
+            timeoutSeconds: {{ .Values.probes.agent.startup.timeoutSeconds }}
+          livenessProbe:
+            exec:
+              command: ["claude", "--version"]
+            periodSeconds: {{ .Values.probes.agent.liveness.periodSeconds }}
+            timeoutSeconds: {{ .Values.probes.agent.liveness.timeoutSeconds }}
+            failureThreshold: {{ .Values.probes.agent.liveness.failureThreshold }}
+          readinessProbe:
+            exec:
+              command: ["test", "-f", "/tmp/claude-logs/claude.jsonl"]
+            periodSeconds: {{ .Values.probes.agent.readiness.periodSeconds }}
+            timeoutSeconds: {{ .Values.probes.agent.readiness.timeoutSeconds }}
+            failureThreshold: {{ .Values.probes.agent.readiness.failureThreshold }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+            capabilities:
+              drop: ["ALL"]
+        - name: neo-ui
+          image: {{ include "neo.uiImage" . }}
+          ports:
+            - containerPort: {{ .Values.ports.ui }}
+              name: neo-ui
+              protocol: TCP
+          env:
+            - name: RELAY_PORT
+              value: "3458"
+            - name: JSONL_DIR
+              value: /data/claude-logs
+            - name: CLAUDE_WORKSPACE_DIR
+              value: /data/claude-workspace
+            - name: ANTHROPIC_BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "neo.fullname" . }}-config
+                  key: ANTHROPIC_BASE_URL
+            - name: ANTHROPIC_DEFAULT_SONNET_MODEL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "neo.fullname" . }}-config
+                  key: ANTHROPIC_DEFAULT_SONNET_MODEL
+            - name: CLAUDE_PERMISSION_MODE
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "neo.fullname" . }}-config
+                  key: CLAUDE_PERMISSION_MODE
+            {{- if .Values.auth.username }}
+            - name: NEO_AUTH_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "neo.fullname" . }}-auth
+                  key: username
+            - name: NEO_AUTH_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "neo.fullname" . }}-auth
+                  key: password
+            {{- end }}
+          volumeMounts:
+            - name: claude-logs
+              mountPath: /data/claude-logs
+            - name: claude-workspace
+              mountPath: /data/claude-workspace
+          resources:
+            {{- toYaml .Values.resources.ui | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.ports.ui }}
+            initialDelaySeconds: {{ .Values.probes.ui.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.ui.liveness.periodSeconds }}
+            timeoutSeconds: {{ .Values.probes.ui.liveness.timeoutSeconds }}
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.ports.ui }}
+            initialDelaySeconds: {{ .Values.probes.ui.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.ui.readiness.periodSeconds }}
+            timeoutSeconds: {{ .Values.probes.ui.readiness.timeoutSeconds }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+            capabilities:
+              drop: ["ALL"]
+      restartPolicy: Always

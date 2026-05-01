@@ -1,0 +1,20 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: {{ include "neo.fullname" . }}-ui
+  labels:
+    {{- include "neo.labels" . | nindent 4 }}
+    app.kubernetes.io/component: neo-ui
+  annotations:
+    openshift.io/display-name: "Neo — Dashboard"
+    haproxy.router.openshift.io/timeout: {{ .Values.route.ui.timeout | quote }}
+spec:
+  to:
+    kind: Service
+    name: {{ include "neo.fullname" . }}-ui
+    weight: 100
+  port:
+    targetPort: neo-ui
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

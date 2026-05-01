@@ -1,0 +1,6 @@
+apiVersion: v2
+name: neo
+description: Workshop participant container — Claude Code agent control panel on OpenShift
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
