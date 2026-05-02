@@ -219,37 +219,6 @@ Progress: [..........] 0%
 
 ---
 
-## Sprint 10 — Onboarding Experience
+## ~~Sprint 10 — Onboarding Experience~~ ✓
 
-First-time app experience that introduces the concept of AI agents, how Neo works, and how to use its features. A guided, step-by-step walkthrough for workshop participants.
-
-```
-Progress: [..........] 0%
-```
-
-### Guided Walkthrough
-
-- [ ] Detect first-time visit (localStorage flag or API-driven)
-- [ ] Design multi-step onboarding flow (modal sequence, spotlight tour, or inline coach marks)
-- [ ] Step 1: "What is an AI agent?" — explain autonomous execution, tool use, reasoning loop
-- [ ] Step 2: "How is this different from an LLM?" — contrast chat-only vs. agent that acts
-- [ ] Step 3: "Meet Neo" — introduce the dashboard, point out chat, terminal, map tabs
-- [ ] Step 4: "Tasks & Plans" — explain how the agent organizes work, show the task drawer
-- [ ] Step 5: "Try it" — prompt the user to send their first message (guided quick action)
-- [ ] Allow skipping/dismissing at any point
-- [ ] Allow re-triggering from Settings or About page ("Show onboarding again")
-
-### Content & Pedagogy
-
-- [ ] Write concise copy for each step (aim for 1-2 sentences + visual)
-- [ ] Create simple illustrations or animations for each concept
-- [ ] Consider progressive disclosure — don't overwhelm, reveal features as needed
-- [ ] Localization-ready structure (separate content from layout)
-
-### Technical Implementation
-
-- [ ] Onboarding state management (which steps seen, completion status)
-- [ ] Spotlight/highlight overlay component (draws attention to specific UI elements)
-- [ ] Step navigation (next, back, skip, done)
-- [ ] Animations/transitions between steps
-- [ ] Integration with existing app routing (onboarding shouldn't block functionality)
+Done — see [Changelog](CHANGELOG.md#onboarding-experience).

@@ -4,6 +4,60 @@
 
 ---
 
+## Onboarding Experience
+
+**Date:** 2026-05-02
+**Status:** Done
+
+Built a 6-step interactive onboarding walkthrough for first-time workshop participants. Introduces what AI agents are, how they differ from chat LLMs, what tools and skills are (and why they exist), and then tours the Neo dashboard — all before prompting the user to send their first message.
+
+### Design Decisions
+
+- **No new dependencies**: Pure CSS animations and transitions; inline SVG/React illustrations.
+- **Content separated from layout**: Step definitions live in `ui/src/content/onboardingSteps.tsx`, following the `content/quickActions.ts` pattern.
+- **localStorage persistence**: Single key (`neo:onboarding-complete`) — no API needed.
+- **Interactive illustrations**: Animated typing side-by-side (LLM vs Agent), tabbed tools/skills explorer, hover-to-explore dashboard, animated task progress.
+
+### Steps
+
+| # | Title | Interactive Element |
+|---|-------|-------------------|
+| 1 | What is an AI Agent? | Animated loop: Think → Plan → Act → Observe |
+| 2 | Agent vs. Chat LLM | Side-by-side terminals with live typing animation |
+| 3 | Tools & Skills | Tabbed panel (click Tools/Skills) with callout |
+| 4 | Tasks & Plans | Tabbed plan/task view with animated progress |
+| 5 | Meet Neo | Hover-to-explore dashboard tabs |
+| 6 | Try It | Simulated typing + quick action buttons |
+
+### New Files
+
+| File | Purpose |
+|------|---------|
+| `ui/src/content/onboardingSteps.tsx` | Step definitions: id, title, body, illustration component, spotlight selector |
+| `ui/src/hooks/useOnboarding.ts` | State hook: localStorage detection, step navigation, restart |
+| `ui/src/hooks/__tests__/useOnboarding.test.ts` | 9 unit tests for the hook |
+| `ui/src/components/Onboarding.tsx` | Overlay component: spotlight (SVG mask), card, dots, keyboard nav |
+| `ui/src/components/__tests__/Onboarding.test.tsx` | 15 component tests |
+
+### Modified Files
+
+| File | Change |
+|------|--------|
+| `ui/src/App.tsx` | Wire `useOnboarding` hook + render `<Onboarding>` overlay |
+| `ui/src/components/AppHeader.tsx` | Pass `onRestartOnboarding` prop through to SettingsDrawer |
+| `ui/src/components/SettingsDrawer.tsx` | Accept prop, render "Show onboarding again" button |
+| `ui/src/styles/neo.css` | ~300 lines: onboarding overlay, card, spotlight, all illustration styles |
+
+### Key Behaviors
+
+- Auto-shows on first visit (no `neo:onboarding-complete` in localStorage)
+- Skip/dismiss at any point (button + Escape key)
+- Keyboard nav: ArrowRight/ArrowLeft for next/back
+- "Get Started" on last step → completes onboarding + switches to Chat tab
+- Re-triggerable from Settings drawer
+
+---
+
 ## Tasks & Plans Integration
 
 **Date:** 2026-05-02

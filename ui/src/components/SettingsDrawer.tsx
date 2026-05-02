@@ -17,7 +17,11 @@ function extractSkills(tree: FileNode[]): string[] {
     .map(n => n.name.replace(/\.md$/, ''));
 }
 
-export function SettingsDrawer() {
+interface SettingsDrawerProps {
+  onRestartOnboarding?: () => void;
+}
+
+export function SettingsDrawer({ onRestartOnboarding }: SettingsDrawerProps) {
   const [open, setOpen] = useState(false);
   const [data, setData] = useState<DrawerData>({ claudeMd: null, skills: [], environment: null });
   const [loading, setLoading] = useState(false);
@@ -123,6 +127,18 @@ export function SettingsDrawer() {
               </div>
 
               <AuditLogViewer />
+
+              {onRestartOnboarding && (
+                <div className="settings-drawer__section">
+                  <h3 className="settings-drawer__section-title">Onboarding</h3>
+                  <button
+                    className="settings-drawer__btn"
+                    onClick={onRestartOnboarding}
+                  >
+                    Show onboarding again
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>

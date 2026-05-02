@@ -18,6 +18,7 @@ interface AppHeaderProps {
   llmAvailable?: boolean;
   tasksState?: TasksState;
   plansState?: PlansState;
+  onRestartOnboarding?: () => void;
 }
 
 function formatTime(seconds: number): string {
@@ -26,7 +27,7 @@ function formatTime(seconds: number): string {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
-export function AppHeader({ startTime, connected, escaped, eventCount, activeTab, onTabChange, llmAvailable = true, tasksState, plansState }: AppHeaderProps) {
+export function AppHeader({ startTime, connected, escaped, eventCount, activeTab, onTabChange, llmAvailable = true, tasksState, plansState, onRestartOnboarding }: AppHeaderProps) {
   const elapsed = useElapsed(startTime, escaped);
   return (
     <header className={`neo-header ${escaped ? 'neo-header--breached' : ''}`}>
@@ -78,7 +79,7 @@ export function AppHeader({ startTime, connected, escaped, eventCount, activeTab
         {tasksState && <TasksDrawer tasksState={tasksState} />}
         {plansState && <PlansDrawer plansState={plansState} />}
         <WorkspaceDrawer />
-        <SettingsDrawer />
+        <SettingsDrawer onRestartOnboarding={onRestartOnboarding} />
       </div>
     </header>
   );

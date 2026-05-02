@@ -5,6 +5,7 @@ import { GameArea } from './components/GameArea';
 import { LiveTerminal } from './components/LiveTerminal';
 import { ChatView } from './components/ChatView';
 import { AboutPage } from './components/AboutPage';
+import { Onboarding } from './components/Onboarding';
 import { EventStreamProvider } from './providers/EventStreamProvider';
 import { useGameState } from './hooks/useGameState';
 import { useAttackPhase } from './hooks/useAttackPhase';
@@ -12,6 +13,7 @@ import { useChatMessages } from './hooks/useChatMessages';
 import { useFakeEventEmitter } from './hooks/useFakeEventEmitter';
 import { useTasks } from './hooks/useTasks';
 import { usePlans } from './hooks/usePlans';
+import { useOnboarding } from './hooks/useOnboarding';
 
 const ENV_URL = import.meta.env.VITE_DEVTOOLS_SSE_URL as string | undefined;
 const DEFAULT_SSE_PATH = '/api/events';
@@ -98,6 +100,7 @@ function AppContent() {
   const attackPhase = useAttackPhase();
   const tasksState = useTasks();
   const plansState = usePlans();
+  const onboarding = useOnboarding();
   const toggleExpand = useCallback(() => setLogsExpanded((v) => !v), []);
 
   const fakeSendPrompt = useCallback(async (prompt: string) => {
@@ -108,6 +111,8 @@ function AppContent() {
   const chatActions: ChatActions = FAKE_CHAT
     ? { sendPrompt: fakeSendPrompt, stopAgent: fakeEmitter.stopAgent, resetConversation: fakeEmitter.resetConversation }
     : chatState;
+
+  const navigateToChat = useCallback(() => setActiveTab('chat'), []);
 
   return (
     <>
@@ -121,8 +126,10 @@ function AppContent() {
         llmAvailable={chatState.llmAvailable}
         tasksState={tasksState}
         plansState={plansState}
+        onRestartOnboarding={onboarding.restart}
       />
       <TabContent activeTab={activeTab} liveState={liveState} chatState={chatState} chatActions={chatActions} attackPhase={attackPhase} logsExpanded={logsExpanded} onToggleExpand={toggleExpand} tasksState={tasksState} />
+      <Onboarding onboarding={onboarding} onNavigateToChat={navigateToChat} />
     </>
   );
 }
