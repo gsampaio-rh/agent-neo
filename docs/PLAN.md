@@ -205,6 +205,104 @@ Research and integrate Claude Code's native task system (`~/.claude/tasks/`) int
 - [ ] Build task viewer component in UI (Kanban or list view with status + dependencies)
 - [ ] Configure agent container: set `CLAUDE_CODE_TASK_LIST_ID` env var in deployment (so tasks persist across sessions)
 
+### Tasks & Plans UI
+
+Design and implement the UI for viewing agent tasks and plans alongside the existing chat and file browser.
+
+**Layout — top-right icon bar (beside the existing folder icon):**
+
+- [ ] Add a "tasks" icon (checklist/clipboard) next to the folder icon in the top-right header
+- [ ] Add a "plans" icon (map/lightbulb) next to the tasks icon
+- [ ] Icons open a drawer/panel (similar to WorkspaceDrawer) showing the respective content
+- [ ] Hover on task icon shows a tooltip preview: task count + active task name
+- [ ] Hover on plans icon shows tooltip: plan title or "No active plan"
+
+**Icon animations:**
+
+- [ ] Task icon pulses/glows when a task status changes (new task created, status update)
+- [ ] Plans icon animates when a new plan is created
+- [ ] Subtle badge/dot on icons when there's activity the user hasn't seen
+- [ ] Idle state: gentle breathing animation to signal availability
+
+**Chat integration — task status bar above the text input:**
+
+- [ ] Compact horizontal bar above the chat input showing current task progress
+- [ ] Format: mini progress indicator + active task `activeForm` text (e.g., "Writing tests — 2/5 done")
+- [ ] Clicking the bar opens the full task panel
+- [ ] Bar hides when no tasks are active
+- [ ] Transitions animate smoothly (slide in/out, progress fill)
+
+**Task panel content:**
+
+- [ ] List view with status badges (pending = gray, in_progress = yellow/pulse, completed = green)
+- [ ] Show dependency arrows or indentation (blockedBy relationship)
+- [ ] Active task highlighted with `activeForm` text
+- [ ] Completed tasks show checkmark with strikethrough
+
+**Plans panel content:**
+
+- [ ] List of plan files (title from `# Plan:` header)
+- [ ] Click to expand and read full plan content (markdown rendered)
+- [ ] Most recent plan shown first
+
+### Agent environment variable audit
+
+Review Claude Code's full environment variable reference and identify variables that should be configured in the `claude-code` container for better performance, security, and observability. Current deployment only sets `ANTHROPIC_BASE_URL` and `MODEL_NAME`.
+
+Candidates to evaluate:
+
+- [ ] `CLAUDE_CODE_ENABLE_TASKS=1` — enable task tracking in `-p` mode (needed for task integration above)
+- [ ] `CLAUDE_CODE_ENABLE_TELEMETRY` + OTEL vars — pipe agent OTel traces/metrics to cluster collector
+- [ ] `BASH_DEFAULT_TIMEOUT_MS` / `BASH_MAX_TIMEOUT_MS` — tune agent command timeouts for workshop context
+- [ ] `API_TIMEOUT_MS` — increase if LLM proxy is slow
+- [ ] `CLAUDE_CODE_MAX_OUTPUT_TOKENS` — control output length vs context budget
+- [ ] `MAX_THINKING_TOKENS` / `CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING` — tune thinking budget for cost control
+- [ ] `CLAUDE_CODE_EFFORT_LEVEL` — set effort level (low/medium/high) to balance speed vs thoroughness
+- [ ] `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` — reduce noise (autoupdater, telemetry, error reporting)
+- [ ] `DISABLE_AUTOUPDATER` / `DISABLE_UPDATES` — prevent self-updates in container
+- [ ] `CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1` — security: strip credentials from subprocesses
+- [ ] `CLAUDE_CODE_SKIP_PROMPT_HISTORY=1` — ephemeral sessions: skip writing history to disk
+- [ ] `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS` — evaluate if background tasks make sense in our headless mode
+- [ ] `CLAUDE_CODE_SIMPLE_SYSTEM_PROMPT` — shorter prompt for faster first-token
+- [ ] `CLAUDE_CODE_GLOB_TIMEOUT_SECONDS` — tune for container filesystem
+- [ ] `DISABLE_PROMPT_CACHING` — evaluate caching behavior with our proxy
+- [ ] `CLAUDE_CODE_AUTO_COMPACT_WINDOW` / `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` — tune compaction for long sessions
+- [ ] Document selected vars in `values.yaml` with comments and add to deployment template
+- [ ] Test performance/cost impact of key vars (effort level, thinking tokens, timeouts)
+
+### Framework-agnostic agent support
+
+Neo currently only supports Claude Code as its agent backend. Explore how to make the platform framework-agnostic so it can host different agentic frameworks (OpenClaw, Hermes, OpenCode, DeepAgents, or custom agents) with minimal changes.
+
+See [agent-ecosystem-comparison.md](research/agent-ecosystem-comparison.md) for research on each framework's execution model, IPC, and context patterns.
+
+**Agent abstraction layer:**
+
+- [ ] Define a common Agent Interface contract: how the relay communicates with any agent (prompt in, stream out, stop, reset)
+- [ ] Identify the minimal IPC protocol that works across frameworks (JSONL stream? stdout? file-based? gRPC?)
+- [ ] Design a plugin/adapter model: each agent framework gets an adapter that translates its native output into Neo's SSE event format
+- [ ] Determine which features are framework-specific vs. universal (tasks, plans, memory, tools)
+
+**Container abstraction:**
+
+- [ ] Factor the `claude-code` container into a generic "agent sidecar" pattern with a well-defined interface
+- [ ] Define the volume contract: what shared volumes an agent must mount and what files it must produce
+- [ ] Create a `values.yaml` config for selecting the agent framework (`agent.type: claude-code | openclaw | hermes | opencode | custom`)
+- [ ] Support custom agent images via `agent.image` + `agent.command` overrides
+
+**Relay adaptations:**
+
+- [ ] Abstract `sources/dir.js` to handle different output formats (not just Claude's JSONL)
+- [ ] Make `MetricsCollector` framework-aware (different agents report tokens/cost differently)
+- [ ] Make task integration optional and pluggable (Claude has `tasks/`, others don't)
+- [ ] Define a generic "agent capabilities" manifest that the UI reads to enable/disable features
+
+**UI flexibility:**
+
+- [ ] Show/hide UI features based on agent capabilities (tasks panel only if agent supports tasks, plans panel only if agent writes plans)
+- [ ] Agent-specific settings in the workspace drawer (CLAUDE.md for Claude, SOUL.md for OpenClaw, etc.)
+- [ ] Generic tool call visualization that works across frameworks
+
 ### Session history
 
 Record and replay past agent sessions:
