@@ -144,23 +144,34 @@ Record and replay past agent sessions:
 
 ---
 
-## Sprint 7 — Monitoring Dashboard & Alerting
+## Sprint 7 — Escape the Box (revisit)
+
+Revisit the "escape the box" challenge. The Map tab and the escape mechanic are **not necessarily coupled** — the map shows network topology (bind shell state), but the "escape" concept could be broader (data exfiltration, privilege escalation, etc.). Need to decide whether they remain tied together or become independent features.
+
+```
+Progress: [..........] 0%
+```
+
+### Escape Activity Integration
+
+The challenge has no way to be triggered from the Neo UI. Agent-side code (`prompt.reset-attack`, `net-monitor.sh`, attack phase detection) exists, but the chart pieces for target-apps/attack are deployed separately.
+
+- [ ] Revisit the relationship between Map tab visualization and escape mechanic — decouple or redesign
+- [ ] Determine how to trigger the escape challenge from the UI (button? auto-prompt? separate deploy step?)
+- [ ] Review if `prompts/escape.txt` is still used and how it gets injected into the agent
+- [ ] Clarify if target-apps and attack charts still exist elsewhere or need to be recreated
+- [ ] Ensure the Map tab attack phase visualization still works end-to-end
+- [ ] Document the full facilitator workflow: deploy target → trigger challenge → observe → reset
+
+---
+
+## Sprint 8 — Monitoring Dashboard & Alerting
 
 Full observability dashboard for facilitators and automated alerting.
 
 ```
 Progress: [..........] 0%
 ```
-
-### Escape the Box Activity (revisit)
-
-The "escape the box" challenge has no way to be triggered from the Neo UI. Agent-side code (`prompt.reset-attack`, `net-monitor.sh`, attack phase detection) exists, but the chart pieces for target-apps/attack are deployed separately.
-
-- [ ] Determine how to trigger the escape challenge from the UI (button? auto-prompt? separate deploy step?)
-- [ ] Review if `prompts/escape.txt` is still used and how it gets injected into the agent
-- [ ] Clarify if target-apps and attack charts still exist elsewhere or need to be recreated
-- [ ] Ensure the Map tab attack phase visualization still works end-to-end
-- [ ] Document the full facilitator workflow: deploy target → trigger challenge → observe → reset
 
 ### Monitoring Dashboard
 
@@ -187,3 +198,58 @@ OpenShift/Prometheus alerting rules via Helm chart `PrometheusRule`:
 - [ ] Add `PrometheusRule` template to Helm chart
 - [ ] Make thresholds configurable via `values.yaml` → `alerting.rules`
 - [ ] Opt-in via `alerting.enabled` (default: false)
+
+---
+
+## Sprint 9 — About Page Redesign
+
+Revisit the About page design — information architecture, UI/UX, and visual presentation.
+
+```
+Progress: [..........] 0%
+```
+
+- [ ] Audit current About page content (architecture diagram, prompt/event flow, tech stack)
+- [ ] Define information hierarchy: what matters most to a first-time viewer vs. a returning user
+- [ ] Redesign layout — consider sections, cards, interactive diagrams, or scroll-based narrative
+- [ ] Visual polish: typography, spacing, color, illustrations
+- [ ] Add links to source code, documentation, and related resources
+- [ ] Mobile/responsive considerations
+- [ ] Accessibility review (heading structure, contrast, screen reader flow)
+
+---
+
+## Sprint 10 — Onboarding Experience
+
+First-time app experience that introduces the concept of AI agents, how Neo works, and how to use its features. A guided, step-by-step walkthrough for workshop participants.
+
+```
+Progress: [..........] 0%
+```
+
+### Guided Walkthrough
+
+- [ ] Detect first-time visit (localStorage flag or API-driven)
+- [ ] Design multi-step onboarding flow (modal sequence, spotlight tour, or inline coach marks)
+- [ ] Step 1: "What is an AI agent?" — explain autonomous execution, tool use, reasoning loop
+- [ ] Step 2: "How is this different from an LLM?" — contrast chat-only vs. agent that acts
+- [ ] Step 3: "Meet Neo" — introduce the dashboard, point out chat, terminal, map tabs
+- [ ] Step 4: "Tasks & Plans" — explain how the agent organizes work, show the task drawer
+- [ ] Step 5: "Try it" — prompt the user to send their first message (guided quick action)
+- [ ] Allow skipping/dismissing at any point
+- [ ] Allow re-triggering from Settings or About page ("Show onboarding again")
+
+### Content & Pedagogy
+
+- [ ] Write concise copy for each step (aim for 1-2 sentences + visual)
+- [ ] Create simple illustrations or animations for each concept
+- [ ] Consider progressive disclosure — don't overwhelm, reveal features as needed
+- [ ] Localization-ready structure (separate content from layout)
+
+### Technical Implementation
+
+- [ ] Onboarding state management (which steps seen, completion status)
+- [ ] Spotlight/highlight overlay component (draws attention to specific UI elements)
+- [ ] Step navigation (next, back, skip, done)
+- [ ] Animations/transitions between steps
+- [ ] Integration with existing app routing (onboarding shouldn't block functionality)

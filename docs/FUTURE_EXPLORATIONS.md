@@ -66,3 +66,4 @@ See [agent-ecosystem-comparison.md](research/agent-ecosystem-comparison.md) for 
 - Build a replay player with timeline scrubbing and variable speed
 - Export recorded sessions as standalone HTML (self-contained replay)
 - Annotate sessions with facilitator notes for training material
+
