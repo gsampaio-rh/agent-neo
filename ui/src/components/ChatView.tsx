@@ -2,11 +2,13 @@ import { useCallback, useEffect, useRef } from 'react';
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 import { QuickActions } from './QuickActions';
+import { TaskStatusBar } from './TaskStatusBar';
 import { ContextSidebar } from './ContextSidebar';
 import { SessionStatsPanel } from './SessionStatsPanel';
 import { exportAsJson, exportAsMarkdown, downloadBlob } from '../lib/chatExport';
 import type { ChatState } from '../lib/chatReducer';
 import type { AgentContext } from '../lib/contextReducer';
+import type { TasksState } from '../hooks/useTasks';
 
 interface ChatViewProps {
   chatState: ChatState;
@@ -14,9 +16,10 @@ interface ChatViewProps {
   onSend: (prompt: string) => void;
   onStop: () => void;
   onReset: () => void;
+  tasksState?: TasksState;
 }
 
-export function ChatView({ chatState, context, onSend, onStop, onReset }: ChatViewProps) {
+export function ChatView({ chatState, context, onSend, onStop, onReset, tasksState }: ChatViewProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const hasMessages = chatState.messages.length > 0;
 
@@ -83,6 +86,7 @@ export function ChatView({ chatState, context, onSend, onStop, onReset }: ChatVi
         </div>
 
         <QuickActions onSend={onSend} disabled={chatState.agentStatus === 'running' || chatState.resetting || !chatState.llmAvailable} />
+        {tasksState && <TaskStatusBar tasksState={tasksState} />}
         <ChatInput onSend={onSend} onStop={onStop} onReset={onReset} agentStatus={chatState.agentStatus} resetting={chatState.resetting} llmAvailable={chatState.llmAvailable} />
       </div>
     </div>

@@ -17,6 +17,8 @@ import { startPodStream } from './relay/sources/pod.js';
 import { startFileStream } from './relay/sources/file.js';
 import { startDirStream } from './relay/sources/dir.js';
 import { startSystemLogStream } from './relay/sources/system.js';
+import { startTaskWatcher } from './relay/sources/tasks.js';
+import { createPlanReader } from './relay/sources/plans.js';
 import { StateManager } from './relay/state/manager.js';
 import { startVllmHealthPoller } from './relay/health/vllm.js';
 import { MetricsCollector } from './relay/metrics/collector.js';
@@ -26,6 +28,8 @@ const hub = new SseHub();
 const stateManager = new StateManager(config.promptDir);
 const auditLogger = new AuditLogger(config.promptDir);
 const metricsCollector = new MetricsCollector({ auditLogger });
+const taskWatcher = startTaskWatcher(hub, config.claudeWorkspaceDir, config.taskListId);
+const planReader = createPlanReader(config.claudeWorkspaceDir);
 
 const originalBroadcast = hub.broadcast.bind(hub);
 hub.broadcast = (line) => {
@@ -35,6 +39,7 @@ hub.broadcast = (line) => {
 };
 
 function shutdown() {
+  taskWatcher.stop();
   auditLogger.destroy();
   stateManager.destroy();
   process.exit(0);
@@ -42,7 +47,7 @@ function shutdown() {
 process.on('SIGTERM', shutdown);
 process.on('SIGINT', shutdown);
 
-const router = createRouter({ hub, config, stateManager, metricsCollector, auditLogger });
+const router = createRouter({ hub, config, stateManager, metricsCollector, auditLogger, taskWatcher, planReader });
 const server = createServer(router);
 
 server.listen(config.port, '0.0.0.0', () => {

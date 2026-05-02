@@ -4,6 +4,76 @@
 
 ---
 
+## Tasks & Plans Integration
+
+**Date:** 2026-05-02
+**Status:** Done
+
+Integrated Claude Code's native task and plan systems into Neo. The relay watches task files on disk (`fs.watch` + 2s polling) and broadcasts state changes via SSE. Plans are fetched on-demand via REST. UI includes drawer panels for both tasks and plans, a task status bar above chat input, and a clickable task detail view showing description, status, active form, and dependency relationships.
+
+### Architecture
+
+- **Disk watch, not JSONL parsing**: Task files are written synchronously by Claude Code — disk state is authoritative. `fs.watch` + polling catches changes within milliseconds without coupling to JSONL format.
+- **SSE for tasks, REST for plans**: Tasks change rapidly during execution → real-time via SSE broadcast. Plans are write-once markdown → fetched on demand.
+- **Helm-managed env vars**: `CLAUDE_CODE_ENABLE_TASKS=1` injected via ConfigMap into the `claude-code` container.
+
+### Relay Backend
+
+| New file | Purpose |
+|---|---|
+| `ui/relay/sources/tasks.js` | TaskWatcher — `fs.watch` + poll, debounced SSE broadcasts, `getTasks()`/`getTask(id)` |
+| `ui/relay/sources/plans.js` | PlanReader — read `plans/*.md` on demand, title extraction from `# Plan:` header |
+| `ui/relay/api/tasks.js` | REST handlers: `GET /api/tasks`, `GET /api/tasks/:id` |
+| `ui/relay/api/plans.js` | REST handlers: `GET /api/plans`, `GET /api/plans/:filename` |
+
+| Modified file | Change |
+|---|---|
+| `ui/relay/config.js` | Added `taskListId` from `CLAUDE_CODE_TASK_LIST_ID` env var |
+| `ui/relay.mjs` | Wire TaskWatcher + PlanReader, shutdown cleanup |
+| `ui/relay/router.js` | 4 new routes, `taskWatcher`/`planReader` in context |
+
+### UI
+
+| New file | Purpose |
+|---|---|
+| `ui/src/services/tasksApi.ts` | Typed fetch client for tasks |
+| `ui/src/services/plansApi.ts` | Typed fetch client for plans |
+| `ui/src/hooks/useTasks.ts` | Dual-source hook (SSE + REST initial load) |
+| `ui/src/hooks/usePlans.ts` | REST polling hook (10s interval) |
+| `ui/src/components/TaskViewer.tsx` | Task list with status badges + clickable detail view |
+| `ui/src/components/TasksDrawer.tsx` | Header icon + drawer panel with badge dot |
+| `ui/src/components/PlansDrawer.tsx` | Header icon + drawer with markdown rendering |
+| `ui/src/components/TaskStatusBar.tsx` | Compact progress dots above chat input |
+
+| Modified file | Change |
+|---|---|
+| `ui/src/lib/eventParser.ts` | Added `task_state` event type |
+| `ui/src/components/AppHeader.tsx` | Added TasksDrawer + PlansDrawer |
+| `ui/src/components/ChatView.tsx` | Added TaskStatusBar |
+| `ui/src/App.tsx` | Wire `useTasks`/`usePlans`, pass to components |
+
+### Helm
+
+| Modified file | Change |
+|---|---|
+| `chart/values.yaml` | Added `config.enableTasks: true`, `config.taskListId: ""` |
+| `chart/templates/configmap.yaml` | Conditional `CLAUDE_CODE_ENABLE_TASKS` + `CLAUDE_CODE_TASK_LIST_ID` |
+
+### Dev Tooling
+
+- `scripts/seed-dev-tasks.sh`: Seeds 5 task files + 1 plan for `make dev`
+- Makefile `dev` target updated to call seed script
+
+### Tests
+
+- **Relay** (`ui/relay/__tests__/tasks.test.js`): 11 tests — TaskWatcher reads, empty states, auto-detect list, explicit list, getTask, malformed JSON, REST handlers
+- **Relay** (`ui/relay/__tests__/plans.test.js`): 10 tests — PlanReader list, empty, sort, getPlan, path traversal, REST handlers
+- **UI hooks** (`useTasks.test.ts`, `usePlans.test.ts`): 10 tests — REST fetch, SSE updates, activeTask derivation, clearActivity, selectPlan toggle
+- **UI components** (`TaskViewer`, `TasksDrawer`, `PlansDrawer`, `TaskStatusBar`): 20 tests — rendering, interaction, detail view, badge dot, status bars
+- **Helm** (`tests/helm/template.test.sh`): +4 assertions — CLAUDE_CODE_ENABLE_TASKS presence, envFrom wiring, optional CLAUDE_CODE_TASK_LIST_ID
+
+---
+
 ## Monitoring, Metrics, and Observability
 
 **Date:** 2026-05-01

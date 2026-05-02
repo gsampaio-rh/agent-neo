@@ -10,6 +10,8 @@ import { useGameState } from './hooks/useGameState';
 import { useAttackPhase } from './hooks/useAttackPhase';
 import { useChatMessages } from './hooks/useChatMessages';
 import { useFakeEventEmitter } from './hooks/useFakeEventEmitter';
+import { useTasks } from './hooks/useTasks';
+import { usePlans } from './hooks/usePlans';
 
 const ENV_URL = import.meta.env.VITE_DEVTOOLS_SSE_URL as string | undefined;
 const DEFAULT_SSE_PATH = '/api/events';
@@ -21,7 +23,7 @@ interface ChatActions {
   resetConversation: () => Promise<void>;
 }
 
-function TabContent({ activeTab, liveState, chatState, chatActions, attackPhase, logsExpanded, onToggleExpand }: {
+function TabContent({ activeTab, liveState, chatState, chatActions, attackPhase, logsExpanded, onToggleExpand, tasksState }: {
   activeTab: TabId;
   liveState: ReturnType<typeof useGameState>;
   chatState: ReturnType<typeof useChatMessages>;
@@ -29,6 +31,7 @@ function TabContent({ activeTab, liveState, chatState, chatActions, attackPhase,
   attackPhase: ReturnType<typeof useAttackPhase>;
   logsExpanded: boolean;
   onToggleExpand: () => void;
+  tasksState: ReturnType<typeof useTasks>;
 }) {
   switch (activeTab) {
     case 'chat':
@@ -39,6 +42,7 @@ function TabContent({ activeTab, liveState, chatState, chatActions, attackPhase,
           onSend={chatActions.sendPrompt}
           onStop={chatActions.stopAgent}
           onReset={chatActions.resetConversation}
+          tasksState={tasksState}
         />
       );
     case 'map':
@@ -92,6 +96,8 @@ function AppContent() {
   const chatState = useChatMessages();
   const fakeEmitter = useFakeEventEmitter(FAKE_CHAT);
   const attackPhase = useAttackPhase();
+  const tasksState = useTasks();
+  const plansState = usePlans();
   const toggleExpand = useCallback(() => setLogsExpanded((v) => !v), []);
 
   const fakeSendPrompt = useCallback(async (prompt: string) => {
@@ -113,8 +119,10 @@ function AppContent() {
         activeTab={activeTab}
         onTabChange={setActiveTab}
         llmAvailable={chatState.llmAvailable}
+        tasksState={tasksState}
+        plansState={plansState}
       />
-      <TabContent activeTab={activeTab} liveState={liveState} chatState={chatState} chatActions={chatActions} attackPhase={attackPhase} logsExpanded={logsExpanded} onToggleExpand={toggleExpand} />
+      <TabContent activeTab={activeTab} liveState={liveState} chatState={chatState} chatActions={chatActions} attackPhase={attackPhase} logsExpanded={logsExpanded} onToggleExpand={toggleExpand} tasksState={tasksState} />
     </>
   );
 }

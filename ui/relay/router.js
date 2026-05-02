@@ -3,14 +3,16 @@ import { handleStatus } from './api/status.js';
 import { handleHealth } from './api/health.js';
 import { handleGetState, handleResetState } from './api/state.js';
 import { handleListFiles, handleReadFile, handleWriteFile } from './api/files.js';
+import { handleListTasks, handleGetTask } from './api/tasks.js';
+import { handleListPlans, handleGetPlan } from './api/plans.js';
 import { handleMetrics } from './api/metrics.js';
 import { handleStats } from './api/stats.js';
 import { handleAudit } from './api/audit.js';
 import { createAuthCheck } from './lib/auth.js';
 import { serveStatic } from './static.js';
 
-export function createRouter({ hub, config, stateManager, metricsCollector, auditLogger }) {
-  const ctx = { promptDir: config.dirPath ? config.promptDir : null, hub, stateManager, config, metricsCollector, auditLogger };
+export function createRouter({ hub, config, stateManager, metricsCollector, auditLogger, taskWatcher, planReader }) {
+  const ctx = { promptDir: config.dirPath ? config.promptDir : null, hub, stateManager, config, metricsCollector, auditLogger, taskWatcher, planReader };
   const checkAuth = createAuthCheck(config.authUser, config.authPass);
 
   return async function route(req, res) {
@@ -43,6 +45,10 @@ export function createRouter({ hub, config, stateManager, metricsCollector, audi
     if (req.url === '/api/files' && req.method === 'GET') return handleListFiles(req, res, ctx);
     if (req.url.startsWith('/api/files/') && req.method === 'GET') return handleReadFile(req, res, ctx);
     if (req.url.startsWith('/api/files/') && req.method === 'PUT') return handleWriteFile(req, res, ctx);
+    if (req.url === '/api/tasks' && req.method === 'GET') return handleListTasks(req, res, ctx);
+    if (req.url.startsWith('/api/tasks/') && req.method === 'GET') return handleGetTask(req, res, ctx);
+    if (req.url === '/api/plans' && req.method === 'GET') return handleListPlans(req, res, ctx);
+    if (req.url.startsWith('/api/plans/') && req.method === 'GET') return handleGetPlan(req, res, ctx);
 
     if (req.url === '/api/events' && req.method === 'GET') {
       res.writeHead(200, {

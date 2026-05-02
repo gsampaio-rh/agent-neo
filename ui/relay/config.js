@@ -30,6 +30,7 @@ const vllmHealthIntervalMs = parseInt(process.env.VLLM_HEALTH_INTERVAL_MS || '50
 const claudeWorkspaceDir = process.env.CLAUDE_WORKSPACE_DIR || '/data/claude-workspace';
 const authUser = process.env.NEO_AUTH_USER || '';
 const authPass = process.env.NEO_AUTH_PASS || '';
+const taskListId = process.env.CLAUDE_CODE_TASK_LIST_ID || '';
 
 export const config = {
   port,
@@ -45,4 +46,5 @@ export const config = {
   claudeWorkspaceDir,
   authUser,
   authPass,
+  taskListId,
 };

@@ -1,6 +1,10 @@
 import { SettingsDrawer } from './SettingsDrawer';
 import { WorkspaceDrawer } from './WorkspaceDrawer';
+import { TasksDrawer } from './TasksDrawer';
+import { PlansDrawer } from './PlansDrawer';
 import { useElapsed } from '../hooks/useElapsed';
+import type { TasksState } from '../hooks/useTasks';
+import type { PlansState } from '../hooks/usePlans';
 
 export type TabId = 'chat' | 'map' | 'box' | 'about';
 
@@ -12,6 +16,8 @@ interface AppHeaderProps {
   activeTab: TabId;
   onTabChange: (tab: TabId) => void;
   llmAvailable?: boolean;
+  tasksState?: TasksState;
+  plansState?: PlansState;
 }
 
 function formatTime(seconds: number): string {
@@ -20,7 +26,7 @@ function formatTime(seconds: number): string {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
-export function AppHeader({ startTime, connected, escaped, eventCount, activeTab, onTabChange, llmAvailable = true }: AppHeaderProps) {
+export function AppHeader({ startTime, connected, escaped, eventCount, activeTab, onTabChange, llmAvailable = true, tasksState, plansState }: AppHeaderProps) {
   const elapsed = useElapsed(startTime, escaped);
   return (
     <header className={`neo-header ${escaped ? 'neo-header--breached' : ''}`}>
@@ -69,6 +75,8 @@ export function AppHeader({ startTime, connected, escaped, eventCount, activeTab
           <span className={`neo-header__dot ${llmAvailable ? 'neo-header__dot--connected' : 'neo-header__dot--llm-off'}`} />
           {llmAvailable ? 'LLM' : 'LLM DOWN'}
         </span>
+        {tasksState && <TasksDrawer tasksState={tasksState} />}
+        {plansState && <PlansDrawer plansState={plansState} />}
         <WorkspaceDrawer />
         <SettingsDrawer />
       </div>

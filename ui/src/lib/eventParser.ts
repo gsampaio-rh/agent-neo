@@ -18,6 +18,7 @@ export type EscapeEventType =
   | 'text'
   | 'result'
   | 'system'
+  | 'task_state'
   | 'unknown';
 
 export interface EscapeEvent {
@@ -72,6 +73,10 @@ function classifyRawEvent(obj: Record<string, unknown>): EscapeEvent {
 
 function classifyAllEvents(obj: Record<string, unknown>): EscapeEvent[] {
   const base = makeBase(obj);
+
+  if (obj.type === 'task_state') {
+    return [{ ...base, type: 'task_state' }];
+  }
 
   if (obj.type === 'system' && obj.subtype === 'init') {
     return [{ ...base, type: 'init', model: obj.model as string }];

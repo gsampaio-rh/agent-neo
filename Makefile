@@ -19,8 +19,10 @@ dev: ## Run relay + Vite dev server locally (no cluster needed)
 	@touch $(DEV_DATA_DIR)/claude.jsonl
 	@rm -f $(DEV_DATA_DIR)/prompt.json $(DEV_DATA_DIR)/prompt.running
 	@mkdir -p $(DEV_DATA_DIR)/claude-workspace/skills $(DEV_DATA_DIR)/claude-workspace/rules
+	@mkdir -p $(DEV_DATA_DIR)/claude-workspace/tasks/neo-dev $(DEV_DATA_DIR)/claude-workspace/plans
 	@test -f $(DEV_DATA_DIR)/claude-workspace/CLAUDE.md || printf '# CLAUDE.md\n\nMain config for the Claude agent.\n' > $(DEV_DATA_DIR)/claude-workspace/CLAUDE.md
 	@test -f $(DEV_DATA_DIR)/claude-workspace/settings.json || printf '{\n  "model": "claude-sonnet-4-20250514",\n  "maxTokens": 8192\n}\n' > $(DEV_DATA_DIR)/claude-workspace/settings.json
+	@test -f $(DEV_DATA_DIR)/claude-workspace/tasks/neo-dev/1.json || scripts/seed-dev-tasks.sh $(DEV_DATA_DIR)/claude-workspace
 	@echo ""
 	@echo "  Neo local dev"
 	@echo "  ─────────────────────────────────────────"

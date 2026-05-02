@@ -2,6 +2,7 @@
 
 **Status:** Sprint 4 (in progress)
 **Date:** 2026-05-02
+**Last updated:** 2026-05-02
 **Related:** [Architecture](ARCHITECTURE.md) | [Changelog](CHANGELOG.md) | [Future Explorations](FUTURE_EXPLORATIONS.md)
 
 Conventions: `[ ]` = pending | `[!]` = blocked | **Gate** = required criterion
@@ -13,7 +14,7 @@ Conventions: `[ ]` = pending | `[!]` = blocked | **Gate** = required criterion
 Harden agent lifecycle (stop/reset), tune the agent container environment, integrate Claude Code's native task and plan systems.
 
 ```
-Progress: [..........] 0%
+Progress: [####......] 40%
 ```
 
 ### Reliable Agent Stop
@@ -57,54 +58,13 @@ Review Claude Code's environment variable reference and configure the `claude-co
 - [ ] Document selected vars in `values.yaml` with comments and add to deployment template
 - [ ] Test performance/cost impact of key vars (effort level, thinking tokens, timeouts)
 
-### Claude Code Task Integration
+### ~~Claude Code Task Integration~~ ✓
 
-Integrate Claude Code's native task system (`~/.claude/tasks/`) into Neo. See [claude-task-system.md](research/claude-task-system.md) for research findings.
+Done — see [Changelog](CHANGELOG.md#tasks--plans-integration).
 
-- [ ] Decide approach: watch task files on disk (chokidar on `/data/claude-workspace/tasks/`) vs. parse tool-use events from JSONL
-- [ ] Expose task state via API: `GET /api/tasks` (list), `GET /api/tasks/:id` (detail)
-- [ ] Build task viewer component in UI (Kanban or list view with status + dependencies)
-- [ ] Configure agent container: set `CLAUDE_CODE_TASK_LIST_ID` env var in deployment
+### ~~Tasks & Plans UI~~ ✓
 
-### Tasks & Plans UI
-
-UI for viewing agent tasks and plans alongside the existing chat and file browser.
-
-**Layout — top-right icon bar (beside the existing folder icon):**
-
-- [ ] Add a "tasks" icon (checklist/clipboard) next to the folder icon in the top-right header
-- [ ] Add a "plans" icon (map/lightbulb) next to the tasks icon
-- [ ] Icons open a drawer/panel (similar to WorkspaceDrawer) showing the respective content
-- [ ] Hover on task icon shows a tooltip preview: task count + active task name
-- [ ] Hover on plans icon shows tooltip: plan title or "No active plan"
-
-**Icon animations:**
-
-- [ ] Task icon pulses/glows when a task status changes (new task created, status update)
-- [ ] Plans icon animates when a new plan is created
-- [ ] Subtle badge/dot on icons when there's activity the user hasn't seen
-- [ ] Idle state: gentle breathing animation to signal availability
-
-**Chat integration — task status bar above the text input:**
-
-- [ ] Compact horizontal bar above the chat input showing current task progress
-- [ ] Format: mini progress indicator + active task text (e.g., "Writing tests — 2/5 done")
-- [ ] Clicking the bar opens the full task panel
-- [ ] Bar hides when no tasks are active
-- [ ] Transitions animate smoothly (slide in/out, progress fill)
-
-**Task panel content:**
-
-- [ ] List view with status badges (pending = gray, in_progress = yellow/pulse, completed = green)
-- [ ] Show dependency arrows or indentation (blockedBy relationship)
-- [ ] Active task highlighted with current step text
-- [ ] Completed tasks show checkmark with strikethrough
-
-**Plans panel content:**
-
-- [ ] List of plan files (title from `# Plan:` header)
-- [ ] Click to expand and read full plan content (markdown rendered)
-- [ ] Most recent plan shown first
+Done — see [Changelog](CHANGELOG.md#tasks--plans-integration).
 
 ---
 

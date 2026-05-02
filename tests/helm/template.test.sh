@@ -116,6 +116,23 @@ helm template test-release "$CHART_DIR" \
   --set metrics.interval=15s > "$TMPDIR_TEST/metrics-interval.yaml" 2>&1
 assert_pass "custom metrics interval propagated" grep -q '15s' "$TMPDIR_TEST/metrics-interval.yaml"
 
+# --- Task env var tests ---
+
+# CLAUDE_CODE_ENABLE_TASKS in ConfigMap when config.enableTasks is true (default)
+assert_pass "ConfigMap includes CLAUDE_CODE_ENABLE_TASKS when enableTasks true" grep -q 'CLAUDE_CODE_ENABLE_TASKS: "1"' "$TMPDIR_TEST/full.yaml"
+
+# CLAUDE_CODE_ENABLE_TASKS env injected into claude-code container via envFrom
+assert_pass "claude-code container gets ConfigMap via envFrom" grep -q 'configMapRef' "$TMPDIR_TEST/full.yaml"
+
+# Optional CLAUDE_CODE_TASK_LIST_ID injected when config.taskListId is non-empty
+helm template test-release "$CHART_DIR" \
+  --set config.anthropicBaseUrl=http://test.example.com \
+  --set config.taskListId=my-tasks > "$TMPDIR_TEST/tasklist.yaml" 2>&1
+assert_pass "CLAUDE_CODE_TASK_LIST_ID in ConfigMap when taskListId set" grep -q 'CLAUDE_CODE_TASK_LIST_ID: "my-tasks"' "$TMPDIR_TEST/tasklist.yaml"
+
+# CLAUDE_CODE_TASK_LIST_ID absent when taskListId is empty
+assert_fail "no CLAUDE_CODE_TASK_LIST_ID when taskListId empty" grep -q 'CLAUDE_CODE_TASK_LIST_ID' "$TMPDIR_TEST/full.yaml"
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]] || exit 1

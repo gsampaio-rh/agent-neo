@@ -16,3 +16,9 @@ data:
   CLAUDE_CODE_MAX_OUTPUT_TOKENS: {{ .Values.config.maxOutputTokens | quote }}
   MAX_THINKING_TOKENS: {{ .Values.config.maxThinkingTokens | quote }}
   CLAUDE_PERMISSION_MODE: {{ .Values.config.permissionMode | quote }}
+  {{- if .Values.config.enableTasks }}
+  CLAUDE_CODE_ENABLE_TASKS: "1"
+  {{- end }}
+  {{- if .Values.config.taskListId }}
+  CLAUDE_CODE_TASK_LIST_ID: {{ .Values.config.taskListId | quote }}
+  {{- end }}

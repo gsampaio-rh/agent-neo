@@ -143,6 +143,10 @@ React frontend + Node.js SSE relay. Built as a multi-stage Docker image (Node 20
 | `/api/status` | GET | Agent state, event count, connected clients |
 | `/api/files` | GET | Workspace directory tree listing |
 | `/api/files/:path` | GET/PUT | Read/write workspace files (path traversal guarded) |
+| `/api/tasks` | GET | List all tasks in active task list (`{ tasks, listId }`) |
+| `/api/tasks/:id` | GET | Single task detail (404 if not found) |
+| `/api/plans` | GET | List plan files (`{ plans: [{ filename, title, mtime }] }`) |
+| `/api/plans/:filename` | GET | Full plan markdown content |
 | `/api/stats` | GET | JSON metrics summary (tokens, cost, latency, tools, errors) |
 | `/api/audit` | GET | Paginated audit log (filterable by type and time) |
 | `/api/metrics` | GET | Prometheus text exposition (no auth — cluster scraping) |
@@ -393,12 +397,12 @@ scripts/deploy.sh
     │   ├── router.js       # Request routing + CORS + body size cap
     │   ├── static.js       # Static serving with path traversal guard
     │   ├── sse/hub.js      # SseHub class with ring buffer (FIFO eviction)
-    │   ├── sources/        # pod.js, file.js, dir.js, system.js — event stream sources
+    │   ├── sources/        # pod.js, file.js, dir.js, system.js, tasks.js, plans.js
     │   ├── state/          # manager.js (StateManager + deriveAttackPhase), detector.js
     │   ├── metrics/        # collector.js (MetricsCollector), prometheus.js (text formatter)
     │   ├── audit/          # logger.js (AuditLogger — ring buffer + JSONL persistence)
     │   ├── health/         # vllm.js (LLM availability poller)
-    │   └── api/            # chat.js, status.js, state.js, files.js, metrics.js, stats.js, audit.js, health.js
+    │   └── api/            # chat.js, status.js, state.js, files.js, tasks.js, plans.js, metrics.js, stats.js, audit.js, health.js
     ├── package.json        # React 19 + Vite 6 + TypeScript
     ├── vite.config.ts      # Dev proxy to relay, port 5173
     └── src/
@@ -406,14 +410,16 @@ scripts/deploy.sh
         ├── components/     # MapArea, GameArea, LiveTerminal, ChatView, ChatMessage,
         │                   # ChatInput, ContextSidebar, AppHeader, SettingsDrawer,
         │                   # WorkspaceDrawer, FileExplorer, AuditLogViewer,
-        │                   # SessionStatsPanel, ChatStats, QuickActions, TimelineView
+        │                   # SessionStatsPanel, ChatStats, QuickActions, TimelineView,
+        │                   # TasksDrawer, PlansDrawer, TaskViewer, TaskStatusBar
         │   ├── map/        # nodes.tsx (custom React Flow nodes), topology.ts (graph builder)
         │   └── game/       # ParticleEmitter.tsx, sounds.ts
         ├── content/        # quickActions.ts, prompts.json
         ├── hooks/          # useGameState, useAttackPhase, useGameSounds, useChatMessages,
-        │                   # useDemoMode, useFakeEventEmitter, useElapsed, useLlmHealth
+        │                   # useDemoMode, useFakeEventEmitter, useElapsed, useLlmHealth,
+        │                   # useTasks, usePlans
         ├── lib/            # eventParser, contextReducer, networkHeuristics,
         │                   # terminalLine, chatReducer, chatExport, constants, format
         ├── providers/      # EventStreamProvider.tsx — single SSE connection context
-        └── services/       # sseClient.ts, chatApi.ts, filesApi.ts, auditApi.ts
+        └── services/       # sseClient.ts, chatApi.ts, filesApi.ts, tasksApi.ts, plansApi.ts, auditApi.ts
 ```
