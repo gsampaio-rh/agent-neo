@@ -35,28 +35,9 @@ Merge `prompt.reset` (session only) and `prompt.reset-attack` (attack cleanup) i
 - [ ] Add `stateManager.reset()` call in relay's `handleReset` so `escaped` flag clears on reset
 - [ ] Update `prompt-watcher-attack-reset.test.sh` to test the merged handler
 
-### Agent Environment Variable Audit
+### ~~Agent Environment Variable Audit~~
 
-Review Claude Code's environment variable reference and configure the `claude-code` container for the workshop context. Current deployment only sets `ANTHROPIC_BASE_URL` and `MODEL_NAME`.
-
-- [ ] `CLAUDE_CODE_ENABLE_TASKS=1` — enable task tracking in `-p` mode (needed for task integration)
-- [ ] `CLAUDE_CODE_ENABLE_TELEMETRY` + OTEL vars — pipe agent OTel traces/metrics to cluster collector
-- [ ] `BASH_DEFAULT_TIMEOUT_MS` / `BASH_MAX_TIMEOUT_MS` — tune agent command timeouts
-- [ ] `API_TIMEOUT_MS` — increase if LLM proxy is slow
-- [ ] `CLAUDE_CODE_MAX_OUTPUT_TOKENS` — control output length vs context budget
-- [ ] `MAX_THINKING_TOKENS` / `CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING` — tune thinking budget for cost control
-- [ ] `CLAUDE_CODE_EFFORT_LEVEL` — set effort level (low/medium/high)
-- [ ] `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` — reduce noise (autoupdater, telemetry, error reporting)
-- [ ] `DISABLE_AUTOUPDATER` / `DISABLE_UPDATES` — prevent self-updates in container
-- [ ] `CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1` — strip credentials from subprocesses
-- [ ] `CLAUDE_CODE_SKIP_PROMPT_HISTORY=1` — ephemeral sessions: skip writing history to disk
-- [ ] `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS` — evaluate if background tasks make sense in headless mode
-- [ ] `CLAUDE_CODE_SIMPLE_SYSTEM_PROMPT` — shorter prompt for faster first-token
-- [ ] `CLAUDE_CODE_GLOB_TIMEOUT_SECONDS` — tune for container filesystem
-- [ ] `DISABLE_PROMPT_CACHING` — evaluate caching behavior with our proxy
-- [ ] `CLAUDE_CODE_AUTO_COMPACT_WINDOW` / `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` — tune compaction for long sessions
-- [ ] Document selected vars in `values.yaml` with comments and add to deployment template
-- [ ] Test performance/cost impact of key vars (effort level, thinking tokens, timeouts)
+Moved to its own sprint — see [Sprint 4b](#sprint-4b--agent-environment-tuning).
 
 ### ~~Claude Code Task Integration~~ ✓
 
@@ -65,6 +46,62 @@ Done — see [Changelog](CHANGELOG.md#tasks--plans-integration).
 ### ~~Tasks & Plans UI~~ ✓
 
 Done — see [Changelog](CHANGELOG.md#tasks--plans-integration).
+
+---
+
+## Sprint 4b — Agent Environment Tuning
+
+Configure Claude Code's environment variables for the workshop context. The container currently only sets `ANTHROPIC_BASE_URL` and `MODEL_NAME` — the agent runtime has dozens of knobs that affect performance, cost, security, and behavior.
+
+```
+Progress: [..........] 0%
+```
+
+### Cost & Performance
+
+Control token budget, thinking time, and latency:
+
+- [ ] `CLAUDE_CODE_MAX_OUTPUT_TOKENS` — control output length vs context budget
+- [ ] `MAX_THINKING_TOKENS` / `CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING` — tune thinking budget for cost control
+- [ ] `CLAUDE_CODE_EFFORT_LEVEL` — set effort level (low/medium/high)
+- [ ] `API_TIMEOUT_MS` — increase if LLM proxy is slow
+- [ ] `CLAUDE_CODE_SIMPLE_SYSTEM_PROMPT` — shorter prompt for faster first-token
+- [ ] `DISABLE_PROMPT_CACHING` — evaluate caching behavior with our proxy
+
+### Execution Safety
+
+Timeouts, subprocess isolation, and session hygiene:
+
+- [ ] `BASH_DEFAULT_TIMEOUT_MS` / `BASH_MAX_TIMEOUT_MS` — tune agent command timeouts
+- [ ] `CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1` — strip credentials from subprocesses
+- [ ] `CLAUDE_CODE_SKIP_PROMPT_HISTORY=1` — ephemeral sessions: skip writing history to disk
+- [ ] `CLAUDE_CODE_GLOB_TIMEOUT_SECONDS` — tune for container filesystem
+
+### Noise Reduction & Container Hardening
+
+Disable features that don't make sense in a sandboxed headless pod:
+
+- [ ] `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` — reduce noise (autoupdater, telemetry, error reporting)
+- [ ] `DISABLE_AUTOUPDATER` / `DISABLE_UPDATES` — prevent self-updates in container
+- [ ] `CLAUDE_CODE_DISABLE_BACKGROUND_TASKS` — evaluate if background tasks make sense in headless mode
+
+### Observability
+
+Wire agent telemetry into the cluster's monitoring stack:
+
+- [ ] `CLAUDE_CODE_ENABLE_TASKS=1` — enable task tracking in `-p` mode (already done via Helm)
+- [ ] `CLAUDE_CODE_ENABLE_TELEMETRY` + OTEL vars — pipe agent OTel traces/metrics to cluster collector
+
+### Context & Session Management
+
+Tune compaction and context window for long-running workshop sessions:
+
+- [ ] `CLAUDE_CODE_AUTO_COMPACT_WINDOW` / `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` — tune compaction for long sessions
+
+### Delivery
+
+- [ ] Document selected vars in `values.yaml` with comments and add to deployment template
+- [ ] Test performance/cost impact of key vars (effort level, thinking tokens, timeouts)
 
 ---
 
