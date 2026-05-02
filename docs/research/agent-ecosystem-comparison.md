@@ -1,4 +1,4 @@
-# Agent Ecosystem Comparison — Execution, Tasks, Memory, Skills, Tools, Plans
+# Agent Ecosystem Comparison — Execution, Tasks, Memory, Skills, Tools, Plans, Instructions
 
 **Date:** 2026-05-02
 **Agents evaluated:** OpenClaw, NemoClaw (NVIDIA), Hermes Agent (Nous Research), DeepAgents (LangChain), Claude Code (Anthropic), OpenCode (Anomaly)
@@ -302,6 +302,7 @@ No dedicated planning file system. Planning happens within the execution loop.
 | **Multi-agent** | Sub-agents | N/A | Isolated delegates | `task` subagents | Swarm/Teams | Subagent chains |
 | **Self-improvement** | No | No | Yes | No | No | No |
 | **Budget control** | No | No | No | No | No | Yes (turns + USD) |
+| **Instruction layer** | `SOUL.md` + skills | Inherits OpenClaw | Emergent skills | Programmatic only | 6-layer `CLAUDE.md` + rules | `instructions.md` + rules |
 
 ---
 
@@ -558,3 +559,94 @@ Key characteristics:
 3. **File-based coordination** (Claude Code, OpenClaw) is more durable but has compaction bugs.
 4. **Graph-based coordination** (DeepAgents/LangGraph) gets durability from checkpointers.
 5. **Persistent subagents** (OpenCode's `resumeSessionId`) enable multi-phase workflows where the same subagent maintains memory across calls.
+
+---
+
+## Deep Dive: Agent Instruction Layer
+
+Every framework needs a way for users to declaratively shape agent behavior per project — "who you are, how you work here, what conventions to follow." This instruction layer sits between the model's base capabilities and the specific project context, and is composed of two primitives:
+
+1. **Project context file** — a single root document defining identity, conventions, and project-level instructions. Always loaded at session start.
+2. **Modular directives** — a directory of composable instruction files, optionally scoped to file patterns or contexts. Loaded conditionally or always.
+
+### Per-framework implementation
+
+| Agent | Project Context (root file) | Modular Directives (directory) | Scoping | Format |
+|---|---|---|---|---|
+| **Claude Code** | `CLAUDE.md` (project root or `.claude/CLAUDE.md`) | `.claude/rules/*.md` | Glob-pattern per file (frontmatter), or always-on | Markdown |
+| **OpenClaw** | `SOUL.md` | `skills/*.md` + plugin configs | Per-skill activation (auto or explicit) | Markdown + YAML |
+| **Hermes** | Implicit (system prompt + skills) | Skills (self-emerging from experience) | Tool-based activation | Markdown |
+| **DeepAgents** | None (instructions via LangGraph config) | None | N/A (programmatic) | Python config |
+| **OpenCode** | `.opencode/instructions.md` | `.opencode/rules/*.md` | Glob-pattern per file | Markdown |
+| **NemoClaw** | Inherits OpenClaw `SOUL.md` | + declarative security policies | Policy-level | YAML |
+
+### Claude Code: 6-layer hierarchy
+
+Claude Code has the most granular instruction system. Layers are merged top-down, with more specific layers taking precedence:
+
+```
+1. Managed policy          ← system-level, all users (Anthropic-controlled)
+2. User memory             ← ~/.claude/CLAUDE.md (global, personal)
+3. Project memory          ← ./CLAUDE.md or ./.claude/CLAUDE.md
+4. Project rules           ← ./.claude/rules/*.md (path-conditional)
+5. Local memory            ← ./CLAUDE.local.md (gitignored, personal)
+6. Auto memory             ← ~/.claude/projects/<path>/memory/ (agent-curated)
+```
+
+Rules support glob-pattern scoping via frontmatter — a rule for `*.test.ts` files only activates when the agent is working on test files. Recommended project CLAUDE.md: 150-500 lines (hard-truncated beyond ~1000).
+
+### OpenClaw: SOUL.md + skills
+
+OpenClaw's `SOUL.md` defines the agent's personality, guidelines, and behavioral constraints. Unlike CLAUDE.md (which is purely instructional), SOUL.md blends identity with instructions:
+
+```markdown
+# SOUL.md
+## Personality
+You are a careful, methodical assistant...
+
+## Guidelines
+- Always use TypeScript
+- Prefer functional patterns
+- Never commit directly to main
+```
+
+Skills are the modular layer — markdown files that define domain-specific workflows. They can be auto-activated based on context or invoked explicitly.
+
+### OpenCode: Similar to Claude Code
+
+OpenCode adopted a nearly identical pattern to Claude Code after its 2026 architecture overhaul:
+
+- `.opencode/instructions.md` — project context (equivalent to CLAUDE.md)
+- `.opencode/rules/*.md` — modular rules with glob-pattern scoping
+
+The key difference: OpenCode's memory CRUD API allows programmatic manipulation of instructions, not just file editing.
+
+### DeepAgents: No file-based instructions
+
+DeepAgents is the outlier — it has no declarative instruction file system. Agent behavior is configured programmatically via `create_deep_agent()` parameters and LangGraph config. This makes it less accessible to non-developers but more composable in code.
+
+### Hermes: Self-emerging instructions
+
+Hermes takes a unique approach where the instruction layer is partially **self-generated**. Skills emerge from the agent's own experience — after completing a complex task, the agent distills a reusable skill file. This means the instruction layer grows organically over time, unlike the pre-authored approach of Claude Code and OpenClaw.
+
+### Abstraction for Neo
+
+The universal pattern across frameworks:
+
+```
+Agent Instruction Layer
+├── Project Context     ← single root file, always loaded
+│   (CLAUDE.md, SOUL.md, instructions.md)
+└── Behavioral Rules    ← directory of composable files, conditionally loaded
+    (rules/*.md, skills/*.md)
+```
+
+For Neo to be framework-agnostic, the relay and UI should work with these abstract concepts rather than framework-specific file names:
+
+| Abstract concept | Claude Code | OpenClaw | OpenCode |
+|---|---|---|---|
+| Project context file | `CLAUDE.md` | `SOUL.md` | `.opencode/instructions.md` |
+| Rules directory | `.claude/rules/` | `skills/` | `.opencode/rules/` |
+| Settings file | `.claude/settings.json` | `config.yaml` | `.opencode/config.json` |
+
+The config editors in Sprint 5 should be designed around the abstract layer — "edit project context", "manage behavioral rules" — with the framework adapter resolving to the correct file paths.
