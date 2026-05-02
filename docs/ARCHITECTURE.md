@@ -1,6 +1,7 @@
 # Architecture: Neo
 
 **Part of:** The Red Matrix Workshop
+**Related:** [Plan](PLAN.md) | [Changelog](CHANGELOG.md) | [Future Explorations](FUTURE_EXPLORATIONS.md)
 
 ## Overview
 
@@ -34,7 +35,7 @@ The system is designed for **live observation**: facilitators watch the agent's 
 │  │             │                  └──────────┬───────────┘       │      │
 │  │             │                             │                   │      │
 │  │             └── claude-logs (emptyDir) ───┘                   │      │
-│  │             └── claude-sessions (emptyDir)                    │      │
+│  │             └── claude-workspace (emptyDir)                   │      │
 │  │                                                                │      │
 │  └────────────────────────────────────────────────────────────────┘      │
 │                                                                          │
@@ -57,17 +58,10 @@ The system is designed for **live observation**: facilitators watch the agent's 
 │  attacker namespace (attack chart)                                       │
 │                                                                          │
 │  ┌─────────────────────┐                                                │
-│  │   attacker pod       │  ← Connects to agent bind shell :4444         │
-│  │   (busybox + nc)     │     Injects CLAUDE.md + malicious skill       │
-│  └─────────────────────┘                                                │
-└──────────────────────────────────────────────────────────────────────────┘
-
-┌──────────────────────────────────────────────────────────────────────────┐
-│  monitoring-system namespace                                             │
-│                                                                          │
-│  ┌─────────────────────┐                                                │
-│  │     collector        │  ← Agent POSTs findings here                  │
-│  │  :5000/collect       │     (scoring endpoint)                        │
+│  │   attacker           │  ← Custom UBI9 image with ttyd + ncat + bash  │
+│  │   (ttyd + scripts)   │     Web terminal at :7681 for facilitators    │
+│  │                      │     Scripts: trigger, wait-shell, connect,    │
+│  │                      │     exploit, full-attack, hold-shell          │
 │  └─────────────────────┘                                                │
 └──────────────────────────────────────────────────────────────────────────┘
 
@@ -93,12 +87,12 @@ The agent runtime. A UBI9/Node 22 image deliberately stripped of network tools p
 | **Installed** | Python 3.12, ttyd 1.7.7, Claude Code CLI |
 | **Removed post-build** | `curl`, `wget`, `nc`, `ncat` |
 | **Port** | 7681 (ttyd web terminal) |
-| **Volumes** | `claude-sessions` → `/opt/app-root/src/.claude`, `claude-logs` → `/tmp/claude-logs` |
+| **Volumes** | `claude-workspace` → `/opt/app-root/src/.claude`, `claude-logs` → `/tmp/claude-logs` |
 | **Resources** | Configurable via `values.yaml` (default: 100m–1 CPU, 256Mi–2Gi memory) |
 
 **Startup flow:**
 
-1. `entrypoint.sh` creates log directory, starts `tail -F` on `claude.jsonl`
+1. `entrypoint.sh` creates log directory
 2. Starts `ttyd` on port 7681 (with optional basic auth via `TTYD_CREDENTIAL` from Secret)
 3. Starts `net-monitor.sh` — polls TCP state every 2s, writes `net-state.json` to the shared `claude-logs` volume (output tee'd to `system.log`)
 4. Backs up `CLAUDE.md` to `.claude/CLAUDE.md.bak` for attack reset restoration
@@ -125,7 +119,7 @@ React frontend + Node.js SSE relay. Built as a multi-stage Docker image (Node 20
 | **Frontend** | React 19 + TypeScript + Vite 6 |
 | **Relay** | `relay.mjs` + `relay/` modules — plain Node.js `http` server |
 | **Port** | 3458 |
-| **Volume** | `claude-logs` → `/data/claude-logs` (read + write for prompt files) |
+| **Volumes** | `claude-logs` → `/data/claude-logs` (prompt IPC), `claude-workspace` → `/data/claude-workspace` (agent config files) |
 | **Resources** | Configurable via `values.yaml` (default: 50m–200m CPU, 64Mi–256Mi memory) |
 
 **Relay modes:**
@@ -147,6 +141,11 @@ React frontend + Node.js SSE relay. Built as a multi-stage Docker image (Node 20
 | `/api/state` | GET | Escape state + `attackPhase` (derived from `net-state.json`) |
 | `/api/state/reset` | POST | Reset escape and attack state |
 | `/api/status` | GET | Agent state, event count, connected clients |
+| `/api/files` | GET | Workspace directory tree listing |
+| `/api/files/:path` | GET/PUT | Read/write workspace files (path traversal guarded) |
+| `/api/stats` | GET | JSON metrics summary (tokens, cost, latency, tools, errors) |
+| `/api/audit` | GET | Paginated audit log (filterable by type and time) |
+| `/api/metrics` | GET | Prometheus text exposition (no auth — cluster scraping) |
 | `/health` | GET | Liveness/readiness probe |
 
 **Frontend features:**
@@ -227,9 +226,12 @@ Managed by two separate Helm charts, deployed independently from the main chart:
 
 | Resource | Kind | Purpose |
 |----------|------|---------|
-| attacker | Namespace | Namespace for the attacker pod |
-| attacker | Pod | busybox pod with nc for connecting to bind shell |
-| allow-bind-shell | NetworkPolicy | Allows attacker → agent :4444, plus UI/terminal traffic |
+| attacker | Namespace | Namespace for the attacker |
+| attacker | Deployment | Custom UBI9 image with ttyd, ncat, bash, and attack scripts |
+| attacker | Service + Route | Exposes ttyd web terminal at :7681 for facilitators |
+| attacker | ServiceAccount + Role/RoleBinding | `get`/`list` pods in agent namespace for IP resolution |
+| neo-attacker | BuildConfig + ImageStream | OpenShift build pipeline for attacker image |
+| allow-bind-shell | NetworkPolicy | Allows attacker → agent :4444, plus UI/terminal/ttyd traffic |
 
 ### Reset Mechanism
 
@@ -262,19 +264,22 @@ The challenge design intentionally limits what the agent can do:
 
 - Agent has cluster-internal network access (can reach services in other namespaces)
 - LLM inference endpoint via `ANTHROPIC_BASE_URL` (from ConfigMap)
-- Scoring target: `http://collector.monitoring-system.svc:5000/collect`
 
-### Web terminal auth
+### Authentication
 
-Optional basic auth on ttyd via a Kubernetes Secret. Set `ttyd.credential` in `values.yaml` or `TTYD_CREDENTIAL` env var (format: `user:password`). When not set, ttyd runs without authentication.
+Optional Basic Auth protecting both the Neo UI relay and the web terminal (ttyd). Configured via `auth.username` / `auth.password` in Helm values, stored in a Kubernetes Secret.
+
+- **Relay**: middleware enforces Basic Auth on all routes except `/health` and `/api/metrics` (cluster scraping). Uses `timingSafeEqual` to prevent timing attacks.
+- **ttyd**: receives `TTYD_CREDENTIAL` (format: `user:password`) from the same Secret.
+- When `auth.username` is empty, auth is disabled on both components.
+- For production, consider upgrading to OpenShift OAuth Proxy or OIDC.
 
 ## Helm Chart
 
-Three Helm charts under `chart/`, each with its own lifecycle:
+The core chart lives at `chart/` (flat structure). Attack demo charts are deployed separately:
 
-- **`chart/neo/`** — core application (Deployment, Services, Routes, BuildConfigs)
-- **`chart/target-apps/`** — target environment for attack demo
-- **`chart/attack/`** — attacker tooling for attack demo
+- **`chart/`** — core application (Deployment, Services, Routes, BuildConfigs, ServiceMonitor)
+- **Attack charts** (separate repos/deployment) — target-apps (inventory-app, RBAC) and attacker (ttyd, ncat, scripts)
 
 ### Managed resources
 
@@ -288,6 +293,8 @@ Three Helm charts under `chart/`, each with its own lifecycle:
 | UI image | BuildConfig + ImageStream | `buildconfig-ui.yaml`, `imagestream-ui.yaml` |
 | Terminal access | Service + Route | `service-web-terminal.yaml`, `route-web-terminal.yaml` |
 | Dashboard access | Service + Route | `service-ui.yaml`, `route-ui.yaml` |
+| Auth credentials | Secret (conditional) | `secret-auth.yaml` |
+| Prometheus scrape | ServiceMonitor (conditional) | `servicemonitor.yaml` |
 
 ### Key values
 
@@ -296,7 +303,10 @@ Three Helm charts under `chart/`, each with its own lifecycle:
 | `config.anthropicBaseUrl` | Yes | — | LLM inference endpoint URL |
 | `config.modelName` | No | `glm47-flash` | Model name for Claude Code |
 | `config.permissionMode` | No | `dangerously-skip-permissions` | Claude permission mode (bypasses approval prompts) |
-| `ttyd.credential` | No | — | Basic auth for web terminal (`user:password`) |
+| `auth.username` | No | — | Basic auth username (auth disabled when empty) |
+| `auth.password` | No | — | Basic auth password |
+| `metrics.enabled` | No | `false` | Enable Prometheus ServiceMonitor |
+| `metrics.interval` | No | `30s` | Prometheus scrape interval |
 | `resources.agent` | No | 100m–1 CPU, 256Mi–2Gi | Agent container resources |
 | `resources.ui` | No | 50m–200m CPU, 64Mi–256Mi | UI container resources |
 | `route.ui.timeout` | No | `300s` | HAProxy timeout for SSE |
@@ -308,7 +318,6 @@ These services must exist in the cluster but are **not managed** by this chart:
 | Service | Namespace | Purpose |
 |---------|-----------|---------|
 | LLM endpoint | configurable | Model inference for Claude Code (set via `config.anthropicBaseUrl`) |
-| Collector | monitoring-system | Scoring endpoint for exfiltrated data |
 
 ## Build Pipeline
 
@@ -316,7 +325,7 @@ Two container images built via OpenShift `BuildConfig` (managed by the Helm char
 
 | Image | Build type | Source | Triggered by |
 |-------|-----------|--------|--------------|
-| `neo-agent` | Binary (Docker) | `build/` dir uploaded | `oc start-build --from-dir` |
+| `neo-agent` | Binary (Docker) | `build/neo/` dir uploaded | `oc start-build --from-dir` |
 | `neo-ui` | Binary (Docker) | `ui/` dir uploaded | `oc start-build --from-dir` |
 
 Both push to the internal registry at `image-registry.openshift-image-registry.svc:5000/{namespace}/{name}:latest`.
@@ -324,11 +333,11 @@ Both push to the internal registry at `image-registry.openshift-image-registry.s
 ## Deployment Flow
 
 ```
-scripts/02-deploy.sh
+scripts/deploy.sh
   │
   ├─ Validate ANTHROPIC_BASE_URL is set
-  ├─ helm upgrade --install (SA, ConfigMap, Secret, Deployment, BCs, Services, Routes)
-  ├─ oc start-build neo-agent (--from-dir=build/)
+  ├─ helm upgrade --install (SA, ConfigMap, Secrets, Deployment, BCs, Services, Routes)
+  ├─ oc start-build neo-agent (--from-dir=build/neo/)
   ├─ oc start-build neo-ui (--from-dir=ui/)
   ├─ oc rollout restart + wait
   └─ Print URLs
@@ -338,32 +347,31 @@ scripts/02-deploy.sh
 
 ```
 ├── Makefile                # Task runner (deploy, build, clean, test)
-├── build/                  # Agent container image
-│   ├── Dockerfile          # UBI9 + Python + ttyd (SHA256 verified) + Claude CLI
-│   ├── entrypoint.sh       # ttyd + net-monitor + prompt-watcher respawn loop + log streaming
-│   ├── claude-logged       # claude -p wrapper with --continue + stream-json logging
-│   ├── prompt-watcher.sh   # Poll-based prompt file watcher (extracted from entrypoint)
-│   └── net-monitor.sh      # TCP state poller — writes net-state.json for attack detection
-├── chart/
-│   ├── neo/                # Helm chart — core application
-│   │   ├── Chart.yaml
-│   │   ├── values.yaml     # LLM URL, model, resources, TTYD auth, permissionMode
-│   │   └── templates/      # SA, ConfigMap, Secret, Deployment, BuildConfigs, Services, Routes
-│   ├── target-apps/        # Helm chart — target environment (attack demo)
-│   │   ├── Chart.yaml
-│   │   ├── values.yaml     # Agent namespace/SA, target namespace
-│   │   ├── files/payload.txt  # Prompt injection payload (role-tag injection)
-│   │   └── templates/      # Namespace, inventory-app, ConfigMap, RBAC
-│   └── attack/             # Helm chart — attacker tooling (attack demo)
-│       ├── Chart.yaml
-│       ├── values.yaml     # Agent namespace, attacker image, bind port
-│       └── templates/      # Namespace, attacker pod, NetworkPolicy
+├── build/
+│   ├── neo/                # Agent container image
+│   │   ├── Dockerfile      # UBI9 + Python + ttyd (SHA256 verified) + Claude CLI
+│   │   ├── entrypoint.sh   # ttyd + net-monitor + prompt-watcher respawn loop
+│   │   ├── claude-logged   # claude -p wrapper with --continue + stream-json logging
+│   │   ├── prompt-watcher.sh  # Poll-based prompt file watcher
+│   │   └── net-monitor.sh  # TCP state poller — writes net-state.json for attack detection
+│   └── attacker/           # Attacker container image
+│       ├── Dockerfile      # UBI9-minimal + ttyd + ncat + bash + jq
+│       ├── entrypoint.sh   # ttyd with optional auth
+│       ├── motd.sh         # Login banner with available commands
+│       └── scripts/        # trigger, wait-shell, connect, exploit, full-attack, hold-shell
+├── chart/                  # Helm chart — core application (flat structure)
+│   ├── Chart.yaml
+│   ├── values.yaml         # LLM URL, model, auth, resources, metrics, permissionMode
+│   └── templates/          # SA, ConfigMap, Secrets, Deployment, BuildConfigs, Services, Routes, ServiceMonitor
 ├── docs/                   # Project documentation
+│   ├── PRD.md              # Product requirements, goals, phases
 │   ├── ARCHITECTURE.md     # This file
+│   ├── PLAN.md             # Sprint roadmap (pending work only)
 │   ├── CHANGELOG.md        # Completed work by sprint
-│   ├── PLAN.md             # Sprint roadmap
-│   └── specs/
-│       └── kill-chain.md   # Attack kill chain specification (source of truth)
+│   ├── FUTURE_EXPLORATIONS.md  # Post-PoC exploration themes
+│   ├── specs/
+│   │   └── kill-chain.md   # Attack kill chain specification
+│   └── research/           # Research findings (agent ecosystem, Claude tasks)
 ├── tests/                  # Test suites
 │   ├── build/              # Shell script tests (net-monitor, prompt-watcher, claude-logged)
 │   └── chart/              # Helm template rendering tests
@@ -371,13 +379,9 @@ scripts/02-deploy.sh
 │   └── escape.txt          # Challenge: explore cluster + POST report to collector
 ├── scripts/                # Deployment automation
 │   ├── config.sh           # Shared config + validate_config()
-│   ├── 01-build-image.sh   # Standalone agent image rebuild
-│   ├── 02-deploy.sh        # helm upgrade --install + oc start-build
-│   ├── 03-test-escape.sh   # Run challenge + check collector
-│   ├── 99-cleanup.sh       # helm uninstall
+│   ├── deploy.sh           # helm upgrade --install + oc start-build
 │   └── attack/             # Attack demo scripts
-│       ├── deploy-attack.sh    # Deploy attack Helm chart
-│       ├── attacker.sh         # Connect to bind shell, inject payloads (base64)
+│       ├── deploy-attack.sh    # Deploy attack Helm chart + build attacker image
 │       ├── auto-attack.sh      # Fully automated attack sequence
 │       ├── cleanup-attack.sh   # Remove attack infrastructure
 │       └── payloads/           # claude-md-override.txt, skill-k8s-ops.txt
@@ -391,19 +395,25 @@ scripts/02-deploy.sh
     │   ├── sse/hub.js      # SseHub class with ring buffer (FIFO eviction)
     │   ├── sources/        # pod.js, file.js, dir.js, system.js — event stream sources
     │   ├── state/          # manager.js (StateManager + deriveAttackPhase), detector.js
-    │   └── api/            # chat.js, status.js, state.js, health.js — REST handlers
+    │   ├── metrics/        # collector.js (MetricsCollector), prometheus.js (text formatter)
+    │   ├── audit/          # logger.js (AuditLogger — ring buffer + JSONL persistence)
+    │   ├── health/         # vllm.js (LLM availability poller)
+    │   └── api/            # chat.js, status.js, state.js, files.js, metrics.js, stats.js, audit.js, health.js
     ├── package.json        # React 19 + Vite 6 + TypeScript
     ├── vite.config.ts      # Dev proxy to relay, port 5173
     └── src/
         ├── App.tsx         # Layout + tab routing + EventStreamProvider wrapping
         ├── components/     # MapArea, GameArea, LiveTerminal, ChatView, ChatMessage,
-        │                   # ChatInput, ContextSidebar, AppHeader, SettingsDrawer
+        │                   # ChatInput, ContextSidebar, AppHeader, SettingsDrawer,
+        │                   # WorkspaceDrawer, FileExplorer, AuditLogViewer,
+        │                   # SessionStatsPanel, ChatStats, QuickActions, TimelineView
         │   ├── map/        # nodes.tsx (custom React Flow nodes), topology.ts (graph builder)
         │   └── game/       # ParticleEmitter.tsx, sounds.ts
-        ├── content/        # agentConfig.ts — agent configuration defaults
-        ├── hooks/          # useGameState, useAttackPhase, useGameSounds, useChatMessages, useDemoMode
+        ├── content/        # quickActions.ts, prompts.json
+        ├── hooks/          # useGameState, useAttackPhase, useGameSounds, useChatMessages,
+        │                   # useDemoMode, useFakeEventEmitter, useElapsed, useLlmHealth
         ├── lib/            # eventParser, contextReducer, networkHeuristics,
-        │                   # terminalLine, chatReducer, constants, demoData
+        │                   # terminalLine, chatReducer, chatExport, constants, format
         ├── providers/      # EventStreamProvider.tsx — single SSE connection context
-        └── services/       # sseClient.ts, chatApi.ts — typed API layer
+        └── services/       # sseClient.ts, chatApi.ts, filesApi.ts, auditApi.ts
 ```

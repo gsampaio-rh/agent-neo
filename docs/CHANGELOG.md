@@ -1,6 +1,6 @@
 # Changelog: Neo
 
-**Related:** [PLAN.md](PLAN.md) | [ARCHITECTURE.md](ARCHITECTURE.md)
+**Related:** [Plan](PLAN.md) | [Architecture](ARCHITECTURE.md) | [Future Explorations](FUTURE_EXPLORATIONS.md)
 
 ---
 
