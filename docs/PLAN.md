@@ -93,7 +93,7 @@ Wire agent telemetry into the cluster's monitoring stack. Claude Code supports t
 - [x] `CLAUDE_CODE_ENABLE_TELEMETRY` + OTEL vars — Helm chart wired with conditional rendering (metrics/logs/traces exporters, OTLP endpoint, export intervals, tool detail logging)
 - [x] Set `metricsExporter: "prometheus"` and expose Prometheus scrape port from `claude-code` container — deployed (Helm rev 30)
 - [x] Add ServiceMonitor (or PodMonitor) to scrape Claude Code's Prometheus metrics endpoint — `servicemonitor-agent.yaml` + `service-agent-metrics.yaml`
-- [ ] Create Grafana dashboard for agent metrics (tokens, cost, sessions, tool usage) — lives in `matrix-iac`
+- [x] Create Grafana dashboard for agent metrics (tokens, cost, sessions, tool usage) — lives in `matrix-iac`
 
 ### Context & Session Management
 
