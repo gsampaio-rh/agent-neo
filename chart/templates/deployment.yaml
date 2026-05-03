@@ -32,6 +32,11 @@ spec:
             - containerPort: {{ .Values.ports.webTerminal }}
               name: web-terminal
               protocol: TCP
+            {{- if and .Values.config.telemetry.enabled (eq .Values.config.telemetry.metricsExporter "prometheus") }}
+            - containerPort: {{ .Values.config.telemetry.prometheusPort }}
+              name: otel-metrics
+              protocol: TCP
+            {{- end }}
           envFrom:
             - configMapRef:
                 name: {{ include "neo.fullname" . }}-config

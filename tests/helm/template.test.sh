@@ -133,6 +133,65 @@ assert_pass "CLAUDE_CODE_TASK_LIST_ID in ConfigMap when taskListId set" grep -q 
 # CLAUDE_CODE_TASK_LIST_ID absent when taskListId is empty
 assert_fail "no CLAUDE_CODE_TASK_LIST_ID when taskListId empty" grep -q 'CLAUDE_CODE_TASK_LIST_ID' "$TMPDIR_TEST/full.yaml"
 
+# --- Telemetry env var tests ---
+
+# Telemetry is enabled by default — verify vars present in full.yaml
+assert_pass "CLAUDE_CODE_ENABLE_TELEMETRY in default render" grep -q 'CLAUDE_CODE_ENABLE_TELEMETRY: "1"' "$TMPDIR_TEST/full.yaml"
+assert_pass "OTEL_METRICS_EXPORTER is prometheus by default" grep -q 'OTEL_METRICS_EXPORTER: "prometheus"' "$TMPDIR_TEST/full.yaml"
+assert_pass "OTEL_EXPORTER_PROMETHEUS_PORT in default render" grep -q 'OTEL_EXPORTER_PROMETHEUS_PORT: "9464"' "$TMPDIR_TEST/full.yaml"
+assert_pass "OTEL_METRIC_EXPORT_INTERVAL in default render" grep -q 'OTEL_METRIC_EXPORT_INTERVAL' "$TMPDIR_TEST/full.yaml"
+
+# Telemetry absent when explicitly disabled
+helm template test-release "$CHART_DIR" \
+  --set config.anthropicBaseUrl=http://test.example.com \
+  --set config.telemetry.enabled=false > "$TMPDIR_TEST/telemetry-off.yaml" 2>&1
+assert_fail "no CLAUDE_CODE_ENABLE_TELEMETRY when telemetry disabled" grep -q 'CLAUDE_CODE_ENABLE_TELEMETRY' "$TMPDIR_TEST/telemetry-off.yaml"
+
+# No traces beta flag when tracesExporter is "none" (default)
+assert_fail "no CLAUDE_CODE_ENHANCED_TELEMETRY_BETA when traces none" grep -q 'CLAUDE_CODE_ENHANCED_TELEMETRY_BETA' "$TMPDIR_TEST/full.yaml"
+
+# Traces beta flag present when tracesExporter is set to otlp
+helm template test-release "$CHART_DIR" \
+  --set config.anthropicBaseUrl=http://test.example.com \
+  --set config.telemetry.tracesExporter=otlp > "$TMPDIR_TEST/telemetry-traces.yaml" 2>&1
+assert_pass "CLAUDE_CODE_ENHANCED_TELEMETRY_BETA when traces otlp" grep -q 'CLAUDE_CODE_ENHANCED_TELEMETRY_BETA: "1"' "$TMPDIR_TEST/telemetry-traces.yaml"
+assert_pass "OTEL_TRACES_EXPORTER when traces otlp" grep -q 'OTEL_TRACES_EXPORTER: "otlp"' "$TMPDIR_TEST/telemetry-traces.yaml"
+
+# OTLP endpoint rendered when set
+helm template test-release "$CHART_DIR" \
+  --set config.anthropicBaseUrl=http://test.example.com \
+  --set config.telemetry.otlp.endpoint=http://collector:4318 > "$TMPDIR_TEST/telemetry-otlp.yaml" 2>&1
+assert_pass "OTEL_EXPORTER_OTLP_ENDPOINT when endpoint set" grep -q 'OTEL_EXPORTER_OTLP_ENDPOINT: "http://collector:4318"' "$TMPDIR_TEST/telemetry-otlp.yaml"
+assert_pass "OTEL_EXPORTER_OTLP_PROTOCOL when endpoint set" grep -q 'OTEL_EXPORTER_OTLP_PROTOCOL' "$TMPDIR_TEST/telemetry-otlp.yaml"
+
+# No OTLP endpoint when not configured
+assert_fail "no OTEL_EXPORTER_OTLP_ENDPOINT when endpoint empty" grep -q 'OTEL_EXPORTER_OTLP_ENDPOINT' "$TMPDIR_TEST/full.yaml"
+
+# --- Prometheus metrics port + Service tests ---
+
+# otel-metrics port exposed on claude-code container (prometheus is default)
+assert_pass "otel-metrics port on claude-code container" grep -q 'otel-metrics' "$TMPDIR_TEST/full.yaml"
+assert_pass "containerPort 9464 on claude-code" grep -q '9464' "$TMPDIR_TEST/full.yaml"
+
+# agent-metrics Service rendered when prometheus exporter enabled
+assert_pass "agent-metrics Service rendered" grep -q 'agent-metrics' "$TMPDIR_TEST/full.yaml"
+
+# No otel-metrics port when telemetry disabled
+assert_fail "no otel-metrics port when telemetry off" grep -q 'otel-metrics' "$TMPDIR_TEST/telemetry-off.yaml"
+
+# --- Agent ServiceMonitor tests ---
+
+# Agent ServiceMonitor rendered when both telemetry (prometheus) and metrics.enabled are true
+helm template test-release "$CHART_DIR" \
+  --set config.anthropicBaseUrl=http://test.example.com \
+  --set metrics.enabled=true > "$TMPDIR_TEST/agent-sm.yaml" 2>&1
+assert_pass "agent ServiceMonitor rendered" grep -q 'neo-agent' "$TMPDIR_TEST/agent-sm.yaml"
+assert_pass "agent ServiceMonitor targets otel-metrics port" grep -q 'otel-metrics' "$TMPDIR_TEST/agent-sm.yaml"
+
+# No agent ServiceMonitor when metrics.enabled is false (default)
+# Use specific name pattern to avoid matching agent-metrics Service
+assert_fail "no agent ServiceMonitor when metrics.enabled false" grep -q 'name: test-release-neo-agent$' "$TMPDIR_TEST/full.yaml"
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]] || exit 1

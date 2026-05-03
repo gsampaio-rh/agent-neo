@@ -22,3 +22,27 @@ data:
   {{- if .Values.config.taskListId }}
   CLAUDE_CODE_TASK_LIST_ID: {{ .Values.config.taskListId | quote }}
   {{- end }}
+  {{- if .Values.config.telemetry.enabled }}
+  CLAUDE_CODE_ENABLE_TELEMETRY: "1"
+  OTEL_METRICS_EXPORTER: {{ .Values.config.telemetry.metricsExporter | quote }}
+  OTEL_LOGS_EXPORTER: {{ .Values.config.telemetry.logsExporter | quote }}
+  {{- if eq .Values.config.telemetry.metricsExporter "prometheus" }}
+  OTEL_EXPORTER_PROMETHEUS_PORT: {{ .Values.config.telemetry.prometheusPort | quote }}
+  {{- end }}
+  {{- if ne .Values.config.telemetry.tracesExporter "none" }}
+  CLAUDE_CODE_ENHANCED_TELEMETRY_BETA: "1"
+  OTEL_TRACES_EXPORTER: {{ .Values.config.telemetry.tracesExporter | quote }}
+  {{- end }}
+  {{- if .Values.config.telemetry.otlp.endpoint }}
+  OTEL_EXPORTER_OTLP_PROTOCOL: {{ .Values.config.telemetry.otlp.protocol | quote }}
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.config.telemetry.otlp.endpoint | quote }}
+  {{- end }}
+  {{- if .Values.config.telemetry.otlp.headers }}
+  OTEL_EXPORTER_OTLP_HEADERS: {{ .Values.config.telemetry.otlp.headers | quote }}
+  {{- end }}
+  OTEL_METRIC_EXPORT_INTERVAL: {{ .Values.config.telemetry.exportInterval.metrics | quote }}
+  OTEL_LOGS_EXPORT_INTERVAL: {{ .Values.config.telemetry.exportInterval.logs | quote }}
+  {{- if .Values.config.telemetry.logDetails }}
+  OTEL_LOG_TOOL_DETAILS: "1"
+  {{- end }}
+  {{- end }}

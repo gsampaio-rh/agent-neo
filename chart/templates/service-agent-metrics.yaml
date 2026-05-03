@@ -1,0 +1,17 @@
+{{- if and .Values.config.telemetry.enabled (eq .Values.config.telemetry.metricsExporter "prometheus") }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "neo.fullname" . }}-agent-metrics
+  labels:
+    {{- include "neo.labels" . | nindent 4 }}
+    app.kubernetes.io/component: agent-metrics
+spec:
+  selector:
+    {{- include "neo.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: otel-metrics
+      port: {{ .Values.config.telemetry.prometheusPort }}
+      targetPort: otel-metrics
+      protocol: TCP
+{{- end }}

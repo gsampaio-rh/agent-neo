@@ -17,6 +17,20 @@ config:
   maxThinkingTokens: "0"
   enableTasks: true
   taskListId: ""
+  telemetry:
+    enabled: true
+    metricsExporter: "prometheus"  # otlp, prometheus, console, none
+    logsExporter: "none"           # otlp, console, none (needs OTel Collector for otlp)
+    tracesExporter: "none"         # otlp, console, none (beta — needs OTel Collector + CLAUDE_CODE_ENHANCED_TELEMETRY_BETA)
+    prometheusPort: 9464           # port for Prometheus scrape endpoint (OTEL_EXPORTER_PROMETHEUS_PORT)
+    otlp:
+      protocol: "http/protobuf"    # grpc, http/json, http/protobuf
+      endpoint: ""                 # e.g. http://otel-collector:4318
+      headers: ""                  # e.g. Authorization=Bearer token
+    exportInterval:
+      metrics: "60000"             # ms (default 60s)
+      logs: "5000"                 # ms (default 5s)
+    logDetails: false              # OTEL_LOG_TOOL_DETAILS — includes file paths, commands, skill names
 
 ports:
   webTerminal: 7681

@@ -73,7 +73,7 @@ Control token budget, thinking time, and latency:
 Timeouts, subprocess isolation, and session hygiene:
 
 - [ ] `BASH_DEFAULT_TIMEOUT_MS` / `BASH_MAX_TIMEOUT_MS` — tune agent command timeouts
-- [ ] `CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1` — strip credentials from subprocesses
+- [ ] `CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1` — strip API keys (ANTHROPIC_API_KEY, AWS creds, etc.) from subprocess env; **caveat:** may force permission mode to `default` and reject `--dangerously-skip-permissions` — verify compatibility
 - [ ] `CLAUDE_CODE_SKIP_PROMPT_HISTORY=1` — ephemeral sessions: skip writing history to disk
 - [ ] `CLAUDE_CODE_GLOB_TIMEOUT_SECONDS` — tune for container filesystem
 
@@ -87,10 +87,13 @@ Disable features that don't make sense in a sandboxed headless pod:
 
 ### Observability
 
-Wire agent telemetry into the cluster's monitoring stack:
+Wire agent telemetry into the cluster's monitoring stack. Claude Code supports three OTEL signals: **metrics**, **log events**, and **traces** (beta). Current approach: Prometheus exporter for metrics (no collector needed). Full OTEL pipeline (collector + Loki + Tempo) is a future exploration — see [Future Explorations](FUTURE_EXPLORATIONS.md#exploration-d--full-opentelemetry-pipeline).
 
-- [ ] `CLAUDE_CODE_ENABLE_TASKS=1` — enable task tracking in `-p` mode (already done via Helm)
-- [ ] `CLAUDE_CODE_ENABLE_TELEMETRY` + OTEL vars — pipe agent OTel traces/metrics to cluster collector
+- [x] `CLAUDE_CODE_ENABLE_TASKS=1` — enable task tracking in `-p` mode (already done via Helm)
+- [x] `CLAUDE_CODE_ENABLE_TELEMETRY` + OTEL vars — Helm chart wired with conditional rendering (metrics/logs/traces exporters, OTLP endpoint, export intervals, tool detail logging)
+- [ ] Set `metricsExporter: "prometheus"` and expose Prometheus scrape port from `claude-code` container
+- [ ] Add ServiceMonitor (or PodMonitor) to scrape Claude Code's Prometheus metrics endpoint
+- [ ] Create Grafana dashboard for agent metrics (tokens, cost, sessions, tool usage) — lives in `matrix-iac`
 
 ### Context & Session Management
 

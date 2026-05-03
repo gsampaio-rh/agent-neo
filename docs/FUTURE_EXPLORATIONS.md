@@ -67,3 +67,41 @@ See [agent-ecosystem-comparison.md](research/agent-ecosystem-comparison.md) for 
 - Export recorded sessions as standalone HTML (self-contained replay)
 - Annotate sessions with facilitator notes for training material
 
+---
+
+## Exploration D — Full OpenTelemetry Pipeline
+
+**Objective:** Replace the Prometheus-only metrics path with a full OTEL pipeline that captures metrics, structured log events, and distributed traces from the agent.
+
+**Exit criteria:** Agent telemetry (all three signals) flows through an OTel Collector to Prometheus (metrics), Loki (logs), and Tempo (traces), with Grafana dashboards for each.
+
+Claude Code already supports all three signals via standard OTEL env vars. The Helm chart (`config.telemetry`) is wired to toggle exporters, OTLP endpoint, protocol, and headers. Current deployment uses `prometheus` exporter for metrics only.
+
+### OTel Collector
+
+- Deploy an OpenTelemetry Collector (sidecar or shared Deployment) to receive OTLP from claude-code
+- Configure pipelines: metrics → Prometheus remote-write, logs → Loki, traces → Tempo
+- Switch `values.yaml` from `metricsExporter: "prometheus"` to `metricsExporter: "otlp"` + `logsExporter: "otlp"`
+- Evaluate collector as sidecar (per-pod) vs. central deployment (shared across participants)
+
+### Log Events
+
+- Enable `OTEL_LOGS_EXPORTER=otlp` to capture structured events: `user_prompt`, `api_request`, `tool_result`
+- Evaluate `OTEL_LOG_TOOL_DETAILS=1` for richer data (file paths, commands, skill names)
+- Build Grafana dashboard panels for prompt/tool activity timeline
+- Consider privacy implications of `OTEL_LOG_USER_PROMPTS` in a workshop setting
+
+### Traces (beta)
+
+- Enable `CLAUDE_CODE_ENHANCED_TELEMETRY_BETA=1` + `OTEL_TRACES_EXPORTER=otlp`
+- Visualize `claude_code.interaction` → `llm_request` → `tool` span hierarchy in Tempo/Jaeger
+- Correlate traces with Neo's existing audit log and SSE events
+- Explore W3C `TRACEPARENT` propagation into agent subprocess commands
+
+### Grafana Dashboards
+
+- Agent cost/token dashboard (already possible with Prometheus-only path)
+- Tool usage heatmap (which tools, how often, duration)
+- Prompt timeline (from log events)
+- Trace explorer for debugging slow agent turns
+
