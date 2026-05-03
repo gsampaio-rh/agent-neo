@@ -189,7 +189,7 @@ Record and replay past agent sessions:
 Revisit the "escape the box" challenge. The Map tab and the escape mechanic are **not necessarily coupled** — the map shows network topology (bind shell state), but the "escape" concept could be broader (data exfiltration, privilege escalation, etc.). Need to decide whether they remain tied together or become independent features.
 
 ```
-Progress: [..........] 0%
+Progress: [####......] 40%
 ```
 
 ### Escape Activity Integration
@@ -203,14 +203,9 @@ The challenge has no way to be triggered from the Neo UI. Agent-side code (`prom
 - [ ] Ensure the Map tab attack phase visualization still works end-to-end
 - [ ] Document the full facilitator workflow: deploy target → trigger challenge → observe → reset
 
-### Dev Mode Toggles
+### ~~Dev Mode Toggles~~ ✓
 
-Add developer-only controls (hidden behind `DEV_MODE` or similar flag) to force the Map tab into specific states for testing and demos without needing the full attack infrastructure:
-
-- [x] Toggle to force Map into **breached mode** (bind shell established, data exfiltrating) — `exploiting` phase + `escaped` toggle in Dev Tools
-- [x] Toggle to force Map into **box mode** (contained state, no escape activity) — `normal` / `compromised` phase buttons
-- [x] Only render toggles when running locally (`make dev`) or when an explicit env var is set — gated on `import.meta.env.DEV`
-- [x] Toggles should override `deriveAttackPhase` in `StateManager` without persisting to disk — client-side override via `SharedStateProvider` context
+Done — see [Changelog](CHANGELOG.md#dev-mode-map-toggles).
 
 ---
 
