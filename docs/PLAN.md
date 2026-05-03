@@ -54,7 +54,7 @@ Done — see [Changelog](CHANGELOG.md#tasks--plans-integration).
 Configure Claude Code's environment variables for the workshop context. The container currently only sets `ANTHROPIC_BASE_URL` and `MODEL_NAME` — the agent runtime has dozens of knobs that affect performance, cost, security, and behavior.
 
 ```
-Progress: [..........] 0%
+Progress: [##........] 20%
 ```
 
 ### Cost & Performance
@@ -91,8 +91,8 @@ Wire agent telemetry into the cluster's monitoring stack. Claude Code supports t
 
 - [x] `CLAUDE_CODE_ENABLE_TASKS=1` — enable task tracking in `-p` mode (already done via Helm)
 - [x] `CLAUDE_CODE_ENABLE_TELEMETRY` + OTEL vars — Helm chart wired with conditional rendering (metrics/logs/traces exporters, OTLP endpoint, export intervals, tool detail logging)
-- [ ] Set `metricsExporter: "prometheus"` and expose Prometheus scrape port from `claude-code` container
-- [ ] Add ServiceMonitor (or PodMonitor) to scrape Claude Code's Prometheus metrics endpoint
+- [x] Set `metricsExporter: "prometheus"` and expose Prometheus scrape port from `claude-code` container — deployed (Helm rev 30)
+- [x] Add ServiceMonitor (or PodMonitor) to scrape Claude Code's Prometheus metrics endpoint — `servicemonitor-agent.yaml` + `service-agent-metrics.yaml`
 - [ ] Create Grafana dashboard for agent metrics (tokens, cost, sessions, tool usage) — lives in `matrix-iac`
 
 ### Context & Session Management

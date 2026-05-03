@@ -4,6 +4,41 @@
 
 ---
 
+## Agent Telemetry — Prometheus Metrics Pipeline
+
+**Date:** 2026-05-02
+**Status:** Done
+
+Wired Claude Code's native OpenTelemetry support into the cluster's Prometheus stack. The agent now exposes metrics (tokens, cost, sessions, tool usage) via a Prometheus scrape endpoint — no OTel Collector needed for this path. Full OTEL pipeline (logs + traces via Collector → Loki/Tempo) deferred to [Future Explorations](FUTURE_EXPLORATIONS.md#exploration-d--full-opentelemetry-pipeline).
+
+### What shipped
+
+| Layer | Change |
+|-------|--------|
+| `chart/values.yaml` | New `config.telemetry` block: toggles for metrics/logs/traces exporters, OTLP config, Prometheus port (9464), export intervals, tool detail logging |
+| `chart/templates/configmap.yaml` | Conditional OTEL env vars: `CLAUDE_CODE_ENABLE_TELEMETRY`, `OTEL_METRICS_EXPORTER`, `OTEL_EXPORTER_PROMETHEUS_PORT`, traces beta flag, OTLP endpoint/protocol/headers, export intervals |
+| `chart/templates/deployment.yaml` | Conditional `otel-metrics` container port (9464) on `claude-code` container |
+| `chart/templates/service-agent-metrics.yaml` | New Service exposing the agent's Prometheus endpoint within the cluster |
+| `chart/templates/servicemonitor-agent.yaml` | New ServiceMonitor for Prometheus to scrape agent metrics (gated on `metrics.enabled`) |
+| `docs/FUTURE_EXPLORATIONS.md` | New "Exploration D — Full OpenTelemetry Pipeline" section |
+
+### Defaults
+
+```yaml
+telemetry:
+  enabled: true
+  metricsExporter: "prometheus"
+  logsExporter: "none"
+  tracesExporter: "none"
+  prometheusPort: 9464
+```
+
+### Tests
+
+- **Helm** (`tests/helm/template.test.sh`): +18 assertions (50 total) — telemetry env vars, Prometheus port, agent-metrics Service, ServiceMonitor conditional rendering, OTLP endpoint/traces toggles
+
+---
+
 ## Onboarding Experience
 
 **Date:** 2026-05-02
