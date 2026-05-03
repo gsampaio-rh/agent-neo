@@ -1,11 +1,36 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { SettingsDrawer } from '../SettingsDrawer';
+import { SharedStateProvider } from '../../hooks/useSharedState';
 import * as chatApi from '../../services/chatApi';
 import * as filesApi from '../../services/filesApi';
 
 vi.mock('../../services/chatApi');
 vi.mock('../../services/filesApi');
+
+function mockFetchByUrl() {
+  vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+    const url = typeof input === 'string' ? input : (input as Request).url;
+    if (url.includes('/api/state')) {
+      return Promise.resolve(new Response(
+        JSON.stringify({ attackPhase: 'normal', escaped: false, eventCount: 0 }),
+        { status: 200 },
+      ));
+    }
+    if (url.includes('/api/audit')) {
+      return Promise.resolve(new Response(
+        JSON.stringify({ events: [], total: 0 }),
+        { status: 200 },
+      ));
+    }
+    return Promise.resolve(new Response('{}', { status: 200 }));
+  });
+}
+
+function renderWithProvider(ui: React.ReactElement) {
+  mockFetchByUrl();
+  return render(<SharedStateProvider>{ui}</SharedStateProvider>);
+}
 
 describe('SettingsDrawer', () => {
   beforeEach(() => {
@@ -36,18 +61,18 @@ describe('SettingsDrawer', () => {
   });
 
   it('renders gear button', () => {
-    render(<SettingsDrawer />);
+    renderWithProvider(<SettingsDrawer />);
     expect(screen.getByTitle('Agent Settings')).toBeInTheDocument();
   });
 
   it('opens drawer on gear click', () => {
-    render(<SettingsDrawer />);
+    renderWithProvider(<SettingsDrawer />);
     fireEvent.click(screen.getByTitle('Agent Settings'));
     expect(screen.getByText('Settings')).toBeInTheDocument();
   });
 
   it('closes on close button click', () => {
-    render(<SettingsDrawer />);
+    renderWithProvider(<SettingsDrawer />);
     fireEvent.click(screen.getByTitle('Agent Settings'));
     expect(screen.getByText('Settings')).toBeInTheDocument();
     fireEvent.click(screen.getByText('✕'));
@@ -55,7 +80,7 @@ describe('SettingsDrawer', () => {
   });
 
   it('closes on overlay click', () => {
-    render(<SettingsDrawer />);
+    renderWithProvider(<SettingsDrawer />);
     fireEvent.click(screen.getByTitle('Agent Settings'));
     const overlay = document.querySelector('.settings-overlay')!;
     fireEvent.click(overlay);
@@ -63,7 +88,7 @@ describe('SettingsDrawer', () => {
   });
 
   it('shows environment info when loaded', async () => {
-    render(<SettingsDrawer />);
+    renderWithProvider(<SettingsDrawer />);
     fireEvent.click(screen.getByTitle('Agent Settings'));
     await waitFor(() => {
       expect(screen.getByText('glm47-flash')).toBeInTheDocument();
@@ -74,7 +99,7 @@ describe('SettingsDrawer', () => {
   });
 
   it('shows skills from workspace', async () => {
-    render(<SettingsDrawer />);
+    renderWithProvider(<SettingsDrawer />);
     fireEvent.click(screen.getByTitle('Agent Settings'));
     await waitFor(() => {
       expect(screen.getByText('recon')).toBeInTheDocument();
@@ -83,7 +108,7 @@ describe('SettingsDrawer', () => {
   });
 
   it('shows CLAUDE.md content', async () => {
-    render(<SettingsDrawer />);
+    renderWithProvider(<SettingsDrawer />);
     fireEvent.click(screen.getByTitle('Agent Settings'));
     await waitFor(() => {
       expect(screen.getByText(/Agent Instructions/)).toBeInTheDocument();
@@ -93,10 +118,83 @@ describe('SettingsDrawer', () => {
 
   it('shows fallback when CLAUDE.md is missing', async () => {
     vi.mocked(filesApi.readFile).mockRejectedValue(new Error('not found'));
-    render(<SettingsDrawer />);
+    renderWithProvider(<SettingsDrawer />);
     fireEvent.click(screen.getByTitle('Agent Settings'));
     await waitFor(() => {
       expect(screen.getByText('No CLAUDE.md found')).toBeInTheDocument();
     });
+  });
+});
+
+describe('SettingsDrawer — Dev Tools', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(chatApi.fetchStatus).mockResolvedValue({
+      status: 'idle', events: 0, clients: 0, llmAvailable: true,
+      environment: { model: 'test', namespace: 'test', podName: 'test', permissionMode: 'default' },
+    });
+    vi.mocked(filesApi.listFiles).mockResolvedValue([]);
+    vi.mocked(filesApi.readFile).mockRejectedValue(new Error('not found'));
+  });
+
+  it('shows Dev Tools section in dev mode', () => {
+    renderWithProvider(<SettingsDrawer />);
+    fireEvent.click(screen.getByTitle('Agent Settings'));
+    expect(screen.getByText('Dev Tools')).toBeInTheDocument();
+    expect(screen.getByText('Local only — resets on refresh')).toBeInTheDocument();
+  });
+
+  it('renders all three attack phase buttons', () => {
+    renderWithProvider(<SettingsDrawer />);
+    fireEvent.click(screen.getByTitle('Agent Settings'));
+    expect(screen.getByText('normal')).toBeInTheDocument();
+    expect(screen.getByText('compromised')).toBeInTheDocument();
+    expect(screen.getByText('exploiting')).toBeInTheDocument();
+  });
+
+  it('renders escaped toggle starting as OFF', () => {
+    renderWithProvider(<SettingsDrawer />);
+    fireEvent.click(screen.getByTitle('Agent Settings'));
+    expect(screen.getByText('OFF')).toBeInTheDocument();
+  });
+
+  it('clicking a phase button highlights it', () => {
+    renderWithProvider(<SettingsDrawer />);
+    fireEvent.click(screen.getByTitle('Agent Settings'));
+    const btn = screen.getByText('exploiting');
+    fireEvent.click(btn);
+    expect(btn.className).toContain('settings-drawer__dev-phase--active');
+  });
+
+  it('toggling escaped changes button text', () => {
+    renderWithProvider(<SettingsDrawer />);
+    fireEvent.click(screen.getByTitle('Agent Settings'));
+    const toggle = screen.getByText('OFF');
+    fireEvent.click(toggle);
+    expect(screen.getByText('ON')).toBeInTheDocument();
+  });
+
+  it('shows reset button only when override is active', () => {
+    renderWithProvider(<SettingsDrawer />);
+    fireEvent.click(screen.getByTitle('Agent Settings'));
+    expect(screen.queryByText('Reset to live state')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('exploiting'));
+    expect(screen.getByText('Reset to live state')).toBeInTheDocument();
+  });
+
+  it('reset clears all overrides', () => {
+    renderWithProvider(<SettingsDrawer />);
+    fireEvent.click(screen.getByTitle('Agent Settings'));
+
+    fireEvent.click(screen.getByText('exploiting'));
+    fireEvent.click(screen.getByText('OFF'));
+    expect(screen.getByText('Reset to live state')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Reset to live state'));
+    expect(screen.queryByText('Reset to live state')).not.toBeInTheDocument();
+    expect(screen.getByText('OFF')).toBeInTheDocument();
+    const exploitingBtn = screen.getByText('exploiting');
+    expect(exploitingBtn.className).not.toContain('settings-drawer__dev-phase--active');
   });
 });

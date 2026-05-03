@@ -1,6 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
+import { createElement } from 'react';
 import { useAttackPhase } from '../useAttackPhase';
+import { SharedStateProvider } from '../useSharedState';
+
+function wrapper({ children }: { children: React.ReactNode }) {
+  return createElement(SharedStateProvider, null, children);
+}
 
 function mockFetchWith(phase: string) {
   return vi.spyOn(globalThis, 'fetch').mockImplementation(
@@ -20,13 +26,13 @@ describe('useAttackPhase', () => {
 
   it('defaults to normal before first fetch resolves', () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation(() => new Promise(() => {}));
-    const { result } = renderHook(() => useAttackPhase());
+    const { result } = renderHook(() => useAttackPhase(), { wrapper });
     expect(result.current).toBe('normal');
   });
 
   it('fetches attackPhase on mount', async () => {
     mockFetchWith('compromised');
-    const { result } = renderHook(() => useAttackPhase());
+    const { result } = renderHook(() => useAttackPhase(), { wrapper });
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
@@ -37,7 +43,7 @@ describe('useAttackPhase', () => {
 
   it('polls every 2 seconds', async () => {
     const fetchSpy = mockFetchWith('normal');
-    renderHook(() => useAttackPhase());
+    renderHook(() => useAttackPhase(), { wrapper });
 
     await act(async () => { await vi.advanceTimersByTimeAsync(0); });
     const afterMount = fetchSpy.mock.calls.length;
@@ -57,7 +63,7 @@ describe('useAttackPhase', () => {
       return new Response(JSON.stringify({ attackPhase: phase }), { status: 200 });
     });
 
-    const { result } = renderHook(() => useAttackPhase());
+    const { result } = renderHook(() => useAttackPhase(), { wrapper });
     await act(async () => { await vi.advanceTimersByTimeAsync(0); });
     expect(result.current).toBe('normal');
 
@@ -75,7 +81,7 @@ describe('useAttackPhase', () => {
       throw new Error('network error');
     });
 
-    const { result } = renderHook(() => useAttackPhase());
+    const { result } = renderHook(() => useAttackPhase(), { wrapper });
     await act(async () => { await vi.advanceTimersByTimeAsync(0); });
     expect(result.current).toBe('compromised');
 
@@ -87,7 +93,7 @@ describe('useAttackPhase', () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation(
       () => Promise.resolve(new Response('', { status: 500 })),
     );
-    const { result } = renderHook(() => useAttackPhase());
+    const { result } = renderHook(() => useAttackPhase(), { wrapper });
     await act(async () => { await vi.advanceTimersByTimeAsync(0); });
     expect(result.current).toBe('normal');
   });
@@ -96,14 +102,14 @@ describe('useAttackPhase', () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation(
       () => Promise.resolve(new Response(JSON.stringify({ escaped: false }), { status: 200 })),
     );
-    const { result } = renderHook(() => useAttackPhase());
+    const { result } = renderHook(() => useAttackPhase(), { wrapper });
     await act(async () => { await vi.advanceTimersByTimeAsync(0); });
     expect(result.current).toBe('normal');
   });
 
   it('cleans up interval on unmount', async () => {
     const fetchSpy = mockFetchWith('normal');
-    const { unmount } = renderHook(() => useAttackPhase());
+    const { unmount } = renderHook(() => useAttackPhase(), { wrapper });
     await act(async () => { await vi.advanceTimersByTimeAsync(0); });
 
     unmount();

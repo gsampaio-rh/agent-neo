@@ -7,6 +7,7 @@ import { ChatView } from './components/ChatView';
 import { AboutPage } from './components/AboutPage';
 import { Onboarding } from './components/Onboarding';
 import { EventStreamProvider } from './providers/EventStreamProvider';
+import { SharedStateProvider } from './hooks/useSharedState';
 import { useGameState } from './hooks/useGameState';
 import { useAttackPhase } from './hooks/useAttackPhase';
 import { useChatMessages } from './hooks/useChatMessages';
@@ -147,7 +148,9 @@ export function App() {
   return (
     <div className={`app${pageHidden ? ' app--hidden' : ''}`}>
       <EventStreamProvider url={sseUrl}>
-        <AppContent />
+        <SharedStateProvider>
+          <AppContent />
+        </SharedStateProvider>
       </EventStreamProvider>
     </div>
   );

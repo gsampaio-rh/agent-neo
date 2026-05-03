@@ -1,7 +1,9 @@
 import { useCallback, useState } from 'react';
 import { fetchStatus, type EnvironmentInfo } from '../services/chatApi';
 import { listFiles, readFile, type FileNode } from '../services/filesApi';
+import { useDevOverride, type DevOverride } from '../hooks/useSharedState';
 import { AuditLogViewer } from './AuditLogViewer';
+import type { AttackPhase } from '../hooks/useAttackPhase';
 
 interface DrawerData {
   claudeMd: string | null;
@@ -15,6 +17,65 @@ function extractSkills(tree: FileNode[]): string[] {
   return skillsDir.children
     .filter(n => n.type === 'file')
     .map(n => n.name.replace(/\.md$/, ''));
+}
+
+const ATTACK_PHASES: AttackPhase[] = ['normal', 'compromised', 'exploiting'];
+
+function DevToolsSection() {
+  const { devOverride, setDevOverride } = useDevOverride();
+
+  const setPhase = (phase: AttackPhase) => {
+    setDevOverride({ ...devOverride, attackPhase: phase });
+  };
+
+  const toggleEscaped = () => {
+    const current = devOverride?.escaped ?? false;
+    setDevOverride({ ...devOverride, escaped: !current });
+  };
+
+  const clearAll = () => setDevOverride(null);
+
+  const activePhase = devOverride?.attackPhase;
+  const escaped = devOverride?.escaped ?? false;
+  const hasOverride = devOverride !== null;
+
+  return (
+    <div className="settings-drawer__section settings-drawer__dev">
+      <h3 className="settings-drawer__section-title">Dev Tools</h3>
+      <span className="settings-drawer__dev-hint">Local only — resets on refresh</span>
+
+      <div className="settings-drawer__field">
+        <label className="settings-drawer__label">Attack Phase</label>
+        <div className="settings-drawer__dev-phases">
+          {ATTACK_PHASES.map((phase) => (
+            <button
+              key={phase}
+              className={`settings-drawer__dev-phase${activePhase === phase ? ' settings-drawer__dev-phase--active' : ''}`}
+              onClick={() => setPhase(phase)}
+            >
+              {phase}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="settings-drawer__field">
+        <label className="settings-drawer__label">Escaped (breached banner)</label>
+        <button
+          className={`settings-drawer__dev-toggle${escaped ? ' settings-drawer__dev-toggle--on' : ''}`}
+          onClick={toggleEscaped}
+        >
+          {escaped ? 'ON' : 'OFF'}
+        </button>
+      </div>
+
+      {hasOverride && (
+        <button className="settings-drawer__btn settings-drawer__dev-reset" onClick={clearAll}>
+          Reset to live state
+        </button>
+      )}
+    </div>
+  );
 }
 
 interface SettingsDrawerProps {
@@ -127,6 +188,8 @@ export function SettingsDrawer({ onRestartOnboarding }: SettingsDrawerProps) {
               </div>
 
               <AuditLogViewer />
+
+              {import.meta.env.DEV && <DevToolsSection />}
 
               {onRestartOnboarding && (
                 <div className="settings-drawer__section">

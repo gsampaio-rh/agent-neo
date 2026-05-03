@@ -203,6 +203,15 @@ The challenge has no way to be triggered from the Neo UI. Agent-side code (`prom
 - [ ] Ensure the Map tab attack phase visualization still works end-to-end
 - [ ] Document the full facilitator workflow: deploy target → trigger challenge → observe → reset
 
+### Dev Mode Toggles
+
+Add developer-only controls (hidden behind `DEV_MODE` or similar flag) to force the Map tab into specific states for testing and demos without needing the full attack infrastructure:
+
+- [x] Toggle to force Map into **breached mode** (bind shell established, data exfiltrating) — `exploiting` phase + `escaped` toggle in Dev Tools
+- [x] Toggle to force Map into **box mode** (contained state, no escape activity) — `normal` / `compromised` phase buttons
+- [x] Only render toggles when running locally (`make dev`) or when an explicit env var is set — gated on `import.meta.env.DEV`
+- [x] Toggles should override `deriveAttackPhase` in `StateManager` without persisting to disk — client-side override via `SharedStateProvider` context
+
 ---
 
 ## Sprint 8 — Monitoring Dashboard & Alerting

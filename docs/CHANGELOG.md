@@ -4,6 +4,37 @@
 
 ---
 
+## Dev Mode Map Toggles
+
+**Date:** 2026-05-03
+**Status:** Done
+
+Added developer-only controls in the Settings drawer to force the Map tab and header banner into specific attack phase states without needing the full escape infrastructure. Useful for testing map visualizations, CSS states, and demos.
+
+### What shipped
+
+- **`SharedStateProvider` context** — converted `useSharedState` from a standalone hook to a React context provider. All consumers (`useAttackPhase`, `useGameState`) now share a single polling instance. The provider supports a `devOverride` that merges over polled server state.
+- **Dev Tools section in SettingsDrawer** — gated on `import.meta.env.DEV` (tree-shaken from production builds). Controls: attack phase buttons (`normal` / `compromised` / `exploiting`), escaped toggle (ON/OFF), and "Reset to live state" button.
+- **Client-side only** — no relay changes, no new API endpoints, no env vars. Override lives in React state and resets on page refresh.
+
+### Files
+
+| File | Change |
+|------|--------|
+| `ui/src/hooks/useSharedState.tsx` | New — context provider with polling + `devOverride` + `useDevOverride()` hook |
+| `ui/src/hooks/useSharedState.ts` | Deleted — replaced by `.tsx` version |
+| `ui/src/App.tsx` | Wrapped `AppContent` with `<SharedStateProvider>` |
+| `ui/src/components/SettingsDrawer.tsx` | Added `DevToolsSection` component with phase buttons, escaped toggle, reset |
+| `ui/src/styles/neo.css` | +74 lines: `.settings-drawer__dev` section, phase buttons, toggle, reset styles |
+
+### Tests
+
+- **`useSharedState`** (`useSharedState.test.tsx`): 6 tests — initial state, polling, override replaces phase/escaped, clearing reverts, eventCount unaffected
+- **`useAttackPhase`** (`useAttackPhase.test.ts`): 8 tests updated to use `SharedStateProvider` wrapper
+- **`SettingsDrawer`** (`SettingsDrawer.test.tsx`): 7 new Dev Tools tests + 8 existing tests updated with provider wrapper (15 total)
+
+---
+
 ## Agent Telemetry — Prometheus Metrics Pipeline
 
 **Date:** 2026-05-02

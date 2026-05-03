@@ -2048,6 +2048,80 @@ body {
   color: var(--green);
 }
 
+/* ── Dev Tools (local dev only) ── */
+.settings-drawer__dev {
+  border: 1px dashed rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.settings-drawer__dev-hint {
+  display: block;
+  font-size: 9px;
+  color: var(--dim);
+  margin-bottom: 10px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.settings-drawer__dev-phases {
+  display: flex;
+  gap: 6px;
+}
+
+.settings-drawer__dev-phase {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s, background 0.2s;
+}
+
+.settings-drawer__dev-phase:hover {
+  border-color: var(--cyan);
+  color: var(--white);
+}
+
+.settings-drawer__dev-phase--active {
+  border-color: var(--cyan);
+  color: var(--cyan);
+  background: rgba(0, 255, 255, 0.1);
+}
+
+.settings-drawer__dev-toggle {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 4px 14px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--dim);
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s, background 0.2s;
+}
+
+.settings-drawer__dev-toggle:hover {
+  border-color: var(--red);
+  color: var(--white);
+}
+
+.settings-drawer__dev-toggle--on {
+  border-color: var(--red);
+  color: var(--red);
+  background: rgba(255, 0, 0, 0.1);
+}
+
+.settings-drawer__dev-reset {
+  margin-top: 8px;
+  width: 100%;
+  text-align: center;
+}
+
 /* ── Config Panel (connect url) ── */
 .config-panel {
   display: flex;
