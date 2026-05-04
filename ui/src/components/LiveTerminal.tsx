@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { TerminalLine } from '../lib/terminalLine';
 import { formatJson } from '../lib/format';
 import { TimelineView } from './TimelineView';
+import { useEmitMilestone } from '../hooks/useMilestones';
 
 interface LiveTerminalProps {
   lines: TerminalLine[];
@@ -20,13 +21,18 @@ const TYPE_ICONS: Record<string, string> = {
   system: '⚙',
 };
 
-function TerminalLineRow({ line }: { line: TerminalLine }) {
+function TerminalLineRow({ line, onExpand }: { line: TerminalLine; onExpand?: () => void }) {
   const [expanded, setExpanded] = useState(false);
   const hasDetail = !!line.detail;
 
   const toggle = useCallback(() => {
-    if (hasDetail) setExpanded((v) => !v);
-  }, [hasDetail]);
+    if (hasDetail) {
+      setExpanded((v) => {
+        if (!v && onExpand) onExpand();
+        return !v;
+      });
+    }
+  }, [hasDetail, onExpand]);
 
   return (
     <>
@@ -56,6 +62,14 @@ function TerminalLineRow({ line }: { line: TerminalLine }) {
 export function LiveTerminal({ lines, agentAction = 'idle', escaped = false, expanded = false, onToggleExpand }: LiveTerminalProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [viewMode, setViewMode] = useState<'log' | 'timeline'>('log');
+  const emitMilestone = useEmitMilestone();
+  const logExpandedEmitted = useRef(false);
+  const handleLogExpand = useCallback(() => {
+    if (!logExpandedEmitted.current) {
+      logExpandedEmitted.current = true;
+      emitMilestone('log_expanded');
+    }
+  }, [emitMilestone]);
 
   useEffect(() => {
     if (!expanded) setViewMode('log');
@@ -117,7 +131,7 @@ export function LiveTerminal({ lines, agentAction = 'idle', escaped = false, exp
               </div>
             )}
             {lines.map((line) => (
-              <TerminalLineRow key={line.id} line={line} />
+              <TerminalLineRow key={line.id} line={line} onExpand={handleLogExpand} />
             ))}
             {lines.length > 0 && (
               <div className="live-terminal__line">

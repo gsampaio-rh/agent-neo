@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { fetchStatus, type EnvironmentInfo } from '../services/chatApi';
 import { listFiles, readFile, type FileNode } from '../services/filesApi';
 import { useDevOverride, type DevOverride } from '../hooks/useSharedState';
+import { getAvatar } from '../content/avatars';
 import { AuditLogViewer } from './AuditLogViewer';
 import type { AttackPhase } from '../hooks/useAttackPhase';
 
@@ -25,12 +26,11 @@ function DevToolsSection() {
   const { devOverride, setDevOverride } = useDevOverride();
 
   const setPhase = (phase: AttackPhase) => {
-    setDevOverride({ ...devOverride, attackPhase: phase });
+    setDevOverride((prev) => ({ ...prev, attackPhase: phase }));
   };
 
   const toggleEscaped = () => {
-    const current = devOverride?.escaped ?? false;
-    setDevOverride({ ...devOverride, escaped: !current });
+    setDevOverride((prev) => ({ ...prev, escaped: !(prev?.escaped ?? false) }));
   };
 
   const clearAll = () => setDevOverride(null);
@@ -80,9 +80,11 @@ function DevToolsSection() {
 
 interface SettingsDrawerProps {
   onRestartOnboarding?: () => void;
+  persona?: { name: string; avatarId: string } | null;
+  onEditPersona?: () => void;
 }
 
-export function SettingsDrawer({ onRestartOnboarding }: SettingsDrawerProps) {
+export function SettingsDrawer({ onRestartOnboarding, persona, onEditPersona }: SettingsDrawerProps) {
   const [open, setOpen] = useState(false);
   const [data, setData] = useState<DrawerData>({ claudeMd: null, skills: [], environment: null });
   const [loading, setLoading] = useState(false);
@@ -134,6 +136,21 @@ export function SettingsDrawer({ onRestartOnboarding }: SettingsDrawerProps) {
 
             <div className="settings-drawer__body">
               {loading && <div className="settings-drawer__loading">Loading...</div>}
+
+              {persona && (
+                <div className="settings-drawer__section">
+                  <h3 className="settings-drawer__section-title">Agent Persona</h3>
+                  <div className="settings-drawer__persona">
+                    <span className="settings-drawer__persona-avatar">{getAvatar(persona.avatarId)?.emoji ?? '🤖'}</span>
+                    <span className="settings-drawer__persona-name">{persona.name}</span>
+                    {onEditPersona && (
+                      <button className="settings-drawer__btn settings-drawer__persona-edit" onClick={onEditPersona}>
+                        Edit
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {data.environment && (
                 <div className="settings-drawer__section">

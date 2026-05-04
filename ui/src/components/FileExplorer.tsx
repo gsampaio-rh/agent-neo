@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import * as filesApi from '../services/filesApi';
+import { useEmitMilestone } from '../hooks/useMilestones';
 import type { FileNode } from '../services/filesApi';
 
 interface FileTreeItemProps {
@@ -55,6 +56,7 @@ export function FileExplorer() {
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [content, setContent] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const emitMilestone = useEmitMilestone();
 
   const fetchTree = useCallback(async () => {
     try {
@@ -80,10 +82,11 @@ export function FileExplorer() {
       setSelectedFile(path);
       setContent(data.content);
       setError(null);
+      emitMilestone('file_read');
     } catch {
       setError(`Failed to read ${path}`);
     }
-  }, [selectedFile]);
+  }, [selectedFile, emitMilestone]);
 
   return (
     <div className="file-explorer">

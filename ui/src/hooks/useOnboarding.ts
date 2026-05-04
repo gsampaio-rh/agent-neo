@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { ONBOARDING_STEPS } from '../content/onboardingSteps';
 
-const STORAGE_KEY = 'neo:onboarding-complete';
+const STORAGE_KEY = 'neo:onboarding-done';
 
 export interface OnboardingState {
   active: boolean;
@@ -18,7 +18,7 @@ export interface OnboardingActions {
   restart: () => void;
 }
 
-function isCompleted(): boolean {
+function isDone(): boolean {
   try {
     return localStorage.getItem(STORAGE_KEY) === 'true';
   } catch {
@@ -26,22 +26,24 @@ function isCompleted(): boolean {
   }
 }
 
-function markCompleted() {
+function markDone() {
   try {
     localStorage.setItem(STORAGE_KEY, 'true');
   } catch { /* localStorage unavailable */ }
 }
 
-function clearCompleted() {
+function clearDone() {
   try {
     localStorage.removeItem(STORAGE_KEY);
   } catch { /* localStorage unavailable */ }
 }
 
 export function useOnboarding(): OnboardingActions {
-  const [active, setActive] = useState(() => !isCompleted());
+  const [done, setDone] = useState(isDone);
   const [currentStep, setCurrentStep] = useState(0);
   const totalSteps = ONBOARDING_STEPS.length;
+
+  const active = !done;
 
   const next = useCallback(() => {
     setCurrentStep((s) => Math.min(s + 1, totalSteps - 1));
@@ -51,22 +53,20 @@ export function useOnboarding(): OnboardingActions {
     setCurrentStep((s) => Math.max(s - 1, 0));
   }, []);
 
-  const complete = useCallback(() => {
-    markCompleted();
-    setActive(false);
-    setCurrentStep(0);
+  const skip = useCallback(() => {
+    markDone();
+    setDone(true);
   }, []);
 
-  const skip = useCallback(() => {
-    markCompleted();
-    setActive(false);
-    setCurrentStep(0);
+  const complete = useCallback(() => {
+    markDone();
+    setDone(true);
   }, []);
 
   const restart = useCallback(() => {
-    clearCompleted();
+    clearDone();
+    setDone(false);
     setCurrentStep(0);
-    setActive(true);
   }, []);
 
   return {

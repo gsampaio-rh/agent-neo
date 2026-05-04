@@ -6,8 +6,10 @@ import { LiveTerminal } from './components/LiveTerminal';
 import { ChatView } from './components/ChatView';
 import { AboutPage } from './components/AboutPage';
 import { Onboarding } from './components/Onboarding';
+import { PersonaSetup } from './components/PersonaSetup';
 import { EventStreamProvider } from './providers/EventStreamProvider';
 import { SharedStateProvider } from './hooks/useSharedState';
+import { MilestoneProvider } from './hooks/useMilestones';
 import { useGameState } from './hooks/useGameState';
 import { useAttackPhase } from './hooks/useAttackPhase';
 import { useChatMessages } from './hooks/useChatMessages';
@@ -15,6 +17,7 @@ import { useFakeEventEmitter } from './hooks/useFakeEventEmitter';
 import { useTasks } from './hooks/useTasks';
 import { usePlans } from './hooks/usePlans';
 import { useOnboarding } from './hooks/useOnboarding';
+import { usePersona } from './hooks/usePersona';
 
 const ENV_URL = import.meta.env.VITE_DEVTOOLS_SSE_URL as string | undefined;
 const DEFAULT_SSE_PATH = '/api/events';
@@ -26,7 +29,7 @@ interface ChatActions {
   resetConversation: () => Promise<void>;
 }
 
-function TabContent({ activeTab, liveState, chatState, chatActions, attackPhase, logsExpanded, onToggleExpand, tasksState }: {
+function TabContent({ activeTab, liveState, chatState, chatActions, attackPhase, logsExpanded, onToggleExpand, tasksState, persona }: {
   activeTab: TabId;
   liveState: ReturnType<typeof useGameState>;
   chatState: ReturnType<typeof useChatMessages>;
@@ -35,6 +38,7 @@ function TabContent({ activeTab, liveState, chatState, chatActions, attackPhase,
   logsExpanded: boolean;
   onToggleExpand: () => void;
   tasksState: ReturnType<typeof useTasks>;
+  persona: ReturnType<typeof usePersona>['persona'];
 }) {
   switch (activeTab) {
     case 'chat':
@@ -46,6 +50,7 @@ function TabContent({ activeTab, liveState, chatState, chatActions, attackPhase,
           onStop={chatActions.stopAgent}
           onReset={chatActions.resetConversation}
           tasksState={tasksState}
+          persona={persona}
         />
       );
     case 'map':
@@ -95,6 +100,7 @@ function TabContent({ activeTab, liveState, chatState, chatActions, attackPhase,
 function AppContent() {
   const [activeTab, setActiveTab] = useState<TabId>('chat');
   const [logsExpanded, setLogsExpanded] = useState(false);
+  const [editingPersona, setEditingPersona] = useState(false);
   const liveState = useGameState();
   const chatState = useChatMessages();
   const fakeEmitter = useFakeEventEmitter(FAKE_CHAT);
@@ -102,6 +108,7 @@ function AppContent() {
   const tasksState = useTasks();
   const plansState = usePlans();
   const onboarding = useOnboarding();
+  const personaActions = usePersona();
   const toggleExpand = useCallback(() => setLogsExpanded((v) => !v), []);
 
   const fakeSendPrompt = useCallback(async (prompt: string) => {
@@ -113,7 +120,32 @@ function AppContent() {
     ? { sendPrompt: fakeSendPrompt, stopAgent: fakeEmitter.stopAgent, resetConversation: fakeEmitter.resetConversation }
     : chatState;
 
-  const navigateToChat = useCallback(() => setActiveTab('chat'), []);
+  const handleTabChange = useCallback((tab: TabId) => {
+    setActiveTab(tab);
+  }, []);
+
+  const handlePersonaComplete = useCallback((persona: { name: string; avatarId: string }) => {
+    personaActions.setPersona(persona);
+    setEditingPersona(false);
+  }, [personaActions.setPersona]);
+
+  const handleEditPersona = useCallback(() => {
+    setEditingPersona(true);
+  }, []);
+
+  const handleEditPersonaCancel = useCallback(() => {
+    setEditingPersona(false);
+  }, []);
+
+  if (editingPersona) {
+    return (
+      <PersonaSetup
+        initialPersona={personaActions.persona}
+        onComplete={handlePersonaComplete}
+        onSkip={handleEditPersonaCancel}
+      />
+    );
+  }
 
   return (
     <>
@@ -123,14 +155,20 @@ function AppContent() {
         escaped={liveState.escaped}
         eventCount={liveState.eventCount}
         activeTab={activeTab}
-        onTabChange={setActiveTab}
+        onTabChange={handleTabChange}
         llmAvailable={chatState.llmAvailable}
         tasksState={tasksState}
         plansState={plansState}
+        persona={personaActions.persona}
+        onEditPersona={handleEditPersona}
         onRestartOnboarding={onboarding.restart}
       />
-      <TabContent activeTab={activeTab} liveState={liveState} chatState={chatState} chatActions={chatActions} attackPhase={attackPhase} logsExpanded={logsExpanded} onToggleExpand={toggleExpand} tasksState={tasksState} />
-      <Onboarding onboarding={onboarding} onNavigateToChat={navigateToChat} />
+      <TabContent activeTab={activeTab} liveState={liveState} chatState={chatState} chatActions={chatActions} attackPhase={attackPhase} logsExpanded={logsExpanded} onToggleExpand={toggleExpand} tasksState={tasksState} persona={personaActions.persona} />
+      <Onboarding
+        onboarding={onboarding}
+        persona={personaActions.persona}
+        onPersonaComplete={handlePersonaComplete}
+      />
     </>
   );
 }
@@ -149,7 +187,9 @@ export function App() {
     <div className={`app${pageHidden ? ' app--hidden' : ''}`}>
       <EventStreamProvider url={sseUrl}>
         <SharedStateProvider>
-          <AppContent />
+          <MilestoneProvider>
+            <AppContent />
+          </MilestoneProvider>
         </SharedStateProvider>
       </EventStreamProvider>
     </div>

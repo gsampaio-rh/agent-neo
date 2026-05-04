@@ -3,6 +3,8 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { ChatMessage as ChatMessageType, MessageBlock } from '../lib/chatReducer';
 import { ChatStats } from './ChatStats';
+import { getAvatar } from '../content/avatars';
+import type { Persona } from '../hooks/usePersona';
 
 function ThinkingBlock({ text }: { text: string }) {
   const [open, setOpen] = useState(false);
@@ -141,15 +143,18 @@ function renderBlock(block: MessageBlock, idx: number) {
 
 interface ChatMessageProps {
   message: ChatMessageType;
+  persona?: Persona | null;
 }
 
-export function ChatMessage({ message }: ChatMessageProps) {
+export function ChatMessage({ message, persona }: ChatMessageProps) {
   const isUser = message.role === 'user';
+  const avatar = !isUser && persona ? getAvatar(persona.avatarId) : null;
+  const agentEmoji = avatar?.emoji ?? '🤖';
 
   return (
     <div className={`chat-message chat-message--${message.role}`}>
       <div className="chat-message__avatar">
-        {isUser ? '👤' : '🤖'}
+        {isUser ? '👤' : agentEmoji}
       </div>
       <div className="chat-message__body">
         {message.blocks.map((block, i) => renderBlock(block, i))}

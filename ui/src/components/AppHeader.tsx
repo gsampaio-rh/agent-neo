@@ -3,6 +3,8 @@ import { WorkspaceDrawer } from './WorkspaceDrawer';
 import { TasksDrawer } from './TasksDrawer';
 import { PlansDrawer } from './PlansDrawer';
 import { useElapsed } from '../hooks/useElapsed';
+import { getAvatar } from '../content/avatars';
+import type { Persona } from '../hooks/usePersona';
 import type { TasksState } from '../hooks/useTasks';
 import type { PlansState } from '../hooks/usePlans';
 
@@ -18,6 +20,8 @@ interface AppHeaderProps {
   llmAvailable?: boolean;
   tasksState?: TasksState;
   plansState?: PlansState;
+  persona?: Persona | null;
+  onEditPersona?: () => void;
   onRestartOnboarding?: () => void;
 }
 
@@ -27,13 +31,16 @@ function formatTime(seconds: number): string {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
-export function AppHeader({ startTime, connected, escaped, eventCount, activeTab, onTabChange, llmAvailable = true, tasksState, plansState, onRestartOnboarding }: AppHeaderProps) {
+export function AppHeader({ startTime, connected, escaped, eventCount, activeTab, onTabChange, llmAvailable = true, tasksState, plansState, persona, onEditPersona, onRestartOnboarding }: AppHeaderProps) {
   const elapsed = useElapsed(startTime, escaped);
+  const avatar = persona ? getAvatar(persona.avatarId) : null;
+  const displayName = escaped ? '!! BREACHED !!' : (persona?.name || 'NEO');
   return (
     <header className={`neo-header ${escaped ? 'neo-header--breached' : ''}`}>
       <div className="neo-header__left">
         <div className="neo-header__title">
-          {escaped ? '!! BREACHED !!' : 'NEO'}
+          {avatar && <span className="neo-header__avatar">{avatar.emoji}</span>}
+          {displayName}
         </div>
         <nav className="neo-header__tabs">
           <button
@@ -79,7 +86,7 @@ export function AppHeader({ startTime, connected, escaped, eventCount, activeTab
         {tasksState && <TasksDrawer tasksState={tasksState} />}
         {plansState && <PlansDrawer plansState={plansState} />}
         <WorkspaceDrawer />
-        <SettingsDrawer onRestartOnboarding={onRestartOnboarding} />
+        <SettingsDrawer onRestartOnboarding={onRestartOnboarding} persona={persona} onEditPersona={onEditPersona} />
       </div>
     </header>
   );

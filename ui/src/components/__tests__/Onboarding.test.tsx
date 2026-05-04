@@ -20,8 +20,16 @@ function createMockOnboarding(overrides: Partial<OnboardingActions['state']> = {
   };
 }
 
+function findGatedStepIndex(): number {
+  return ONBOARDING_STEPS.findIndex((s) => s.gated !== false && s.id !== 'name-agent');
+}
+
+function findNonGatedStepIndex(): number {
+  return ONBOARDING_STEPS.findIndex((s) => s.gated === false);
+}
+
 describe('Onboarding', () => {
-  const onNavigateToChat = vi.fn();
+  const onPersonaComplete = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -30,128 +38,143 @@ describe('Onboarding', () => {
   it('renders nothing when inactive', () => {
     const onboarding = createMockOnboarding({ active: false });
     const { container } = render(
-      <Onboarding onboarding={onboarding} onNavigateToChat={onNavigateToChat} />,
+      <Onboarding onboarding={onboarding} persona={null} onPersonaComplete={onPersonaComplete} />,
     );
     expect(container.innerHTML).toBe('');
   });
 
-  it('renders overlay and first step when active', () => {
+  it('renders overlay when active', () => {
     const onboarding = createMockOnboarding();
-    render(<Onboarding onboarding={onboarding} onNavigateToChat={onNavigateToChat} />);
-
-    expect(screen.getByRole('dialog')).toBeInTheDocument();
-    expect(screen.getByText(ONBOARDING_STEPS[0].title)).toBeInTheDocument();
-    expect(screen.getByText(ONBOARDING_STEPS[0].body)).toBeInTheDocument();
+    render(
+      <Onboarding onboarding={onboarding} persona={null} onPersonaComplete={onPersonaComplete} />,
+    );
+    expect(document.querySelector('.onboarding-overlay')).toBeInTheDocument();
   });
 
-  it('shows step indicator dots matching total steps', () => {
-    const onboarding = createMockOnboarding();
-    render(<Onboarding onboarding={onboarding} onNavigateToChat={onNavigateToChat} />);
-
-    const dots = document.querySelectorAll('.onboarding-card__dot');
-    expect(dots.length).toBe(ONBOARDING_STEPS.length);
-  });
-
-  it('marks current step dot as active', () => {
-    const onboarding = createMockOnboarding({ currentStep: 2 });
-    render(<Onboarding onboarding={onboarding} onNavigateToChat={onNavigateToChat} />);
-
-    const dots = document.querySelectorAll('.onboarding-card__dot');
-    expect(dots[2].classList.contains('onboarding-card__dot--active')).toBe(true);
-    expect(dots[0].classList.contains('onboarding-card__dot--done')).toBe(true);
-    expect(dots[1].classList.contains('onboarding-card__dot--done')).toBe(true);
-  });
-
-  it('calls next() when Next button is clicked', () => {
+  it('renders PersonaSetup on step 0 (name-agent)', () => {
     const onboarding = createMockOnboarding({ currentStep: 0 });
-    render(<Onboarding onboarding={onboarding} onNavigateToChat={onNavigateToChat} />);
-
-    fireEvent.click(screen.getByText('Next'));
-    expect(onboarding.next).toHaveBeenCalledOnce();
+    render(
+      <Onboarding onboarding={onboarding} persona={null} onPersonaComplete={onPersonaComplete} />,
+    );
+    expect(screen.getByText('Name Your Agent')).toBeInTheDocument();
+    expect(screen.getByLabelText('Agent Name')).toBeInTheDocument();
   });
 
-  it('calls back() when Back button is clicked', () => {
-    const onboarding = createMockOnboarding({ currentStep: 2 });
-    render(<Onboarding onboarding={onboarding} onNavigateToChat={onNavigateToChat} />);
-
-    fireEvent.click(screen.getByText('Back'));
-    expect(onboarding.back).toHaveBeenCalledOnce();
+  it('renders title, body, and nav buttons on non-persona step', () => {
+    const onboarding = createMockOnboarding({ currentStep: 1 });
+    render(
+      <Onboarding onboarding={onboarding} persona={null} onPersonaComplete={onPersonaComplete} />,
+    );
+    expect(screen.getByText('What is an AI Agent?')).toBeInTheDocument();
+    expect(screen.getByText('Next')).toBeInTheDocument();
+    expect(screen.getByText('Back')).toBeInTheDocument();
   });
 
-  it('does not show Back button on first step', () => {
-    const onboarding = createMockOnboarding({ currentStep: 0 });
-    render(<Onboarding onboarding={onboarding} onNavigateToChat={onNavigateToChat} />);
-
-    expect(screen.queryByText('Back')).not.toBeInTheDocument();
+  it('Next button is disabled on a gated step', () => {
+    const gatedIdx = findGatedStepIndex();
+    const onboarding = createMockOnboarding({ currentStep: gatedIdx });
+    render(
+      <Onboarding onboarding={onboarding} persona={null} onPersonaComplete={onPersonaComplete} />,
+    );
+    const nextBtn = screen.getByText('Next');
+    expect(nextBtn).toBeDisabled();
   });
 
-  it('calls skip() when Skip button is clicked', () => {
-    const onboarding = createMockOnboarding();
-    render(<Onboarding onboarding={onboarding} onNavigateToChat={onNavigateToChat} />);
-
-    fireEvent.click(screen.getByText('Skip'));
-    expect(onboarding.skip).toHaveBeenCalledOnce();
+  it('Next button is enabled on a non-gated step', () => {
+    const nonGatedIdx = findNonGatedStepIndex();
+    const onboarding = createMockOnboarding({ currentStep: nonGatedIdx });
+    render(
+      <Onboarding onboarding={onboarding} persona={null} onPersonaComplete={onPersonaComplete} />,
+    );
+    const nextBtn = screen.getByText('Next');
+    expect(nextBtn).not.toBeDisabled();
   });
 
-  it('shows Get Started on last step and navigates to chat on click', () => {
+  it('shows "Get Started" button on the last step', () => {
     const lastStep = ONBOARDING_STEPS.length - 1;
     const onboarding = createMockOnboarding({ currentStep: lastStep });
-    render(<Onboarding onboarding={onboarding} onNavigateToChat={onNavigateToChat} />);
-
-    expect(screen.queryByText('Next')).not.toBeInTheDocument();
-    const doneBtn = screen.getByText('Get Started');
-    expect(doneBtn).toBeInTheDocument();
-
-    fireEvent.click(doneBtn);
-    expect(onboarding.complete).toHaveBeenCalledOnce();
-    expect(onNavigateToChat).toHaveBeenCalledOnce();
+    render(
+      <Onboarding onboarding={onboarding} persona={null} onPersonaComplete={onPersonaComplete} />,
+    );
+    expect(screen.getByRole('button', { name: 'Get Started' })).toBeInTheDocument();
   });
 
-  it('responds to Escape key by calling skip()', () => {
+  it('calls skip() on Escape key', () => {
     const onboarding = createMockOnboarding();
-    render(<Onboarding onboarding={onboarding} onNavigateToChat={onNavigateToChat} />);
-
+    render(
+      <Onboarding onboarding={onboarding} persona={null} onPersonaComplete={onPersonaComplete} />,
+    );
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(onboarding.skip).toHaveBeenCalledOnce();
   });
 
-  it('responds to ArrowRight key by calling next()', () => {
-    const onboarding = createMockOnboarding({ currentStep: 1 });
-    render(<Onboarding onboarding={onboarding} onNavigateToChat={onNavigateToChat} />);
-
-    fireEvent.keyDown(document, { key: 'ArrowRight' });
-    expect(onboarding.next).toHaveBeenCalledOnce();
-  });
-
-  it('responds to ArrowLeft key by calling back()', () => {
-    const onboarding = createMockOnboarding({ currentStep: 2 });
-    render(<Onboarding onboarding={onboarding} onNavigateToChat={onNavigateToChat} />);
-
-    fireEvent.keyDown(document, { key: 'ArrowLeft' });
-    expect(onboarding.back).toHaveBeenCalledOnce();
-  });
-
-  it('does not call next on ArrowRight at last step', () => {
-    const lastStep = ONBOARDING_STEPS.length - 1;
-    const onboarding = createMockOnboarding({ currentStep: lastStep });
-    render(<Onboarding onboarding={onboarding} onNavigateToChat={onNavigateToChat} />);
-
-    fireEvent.keyDown(document, { key: 'ArrowRight' });
-    expect(onboarding.next).not.toHaveBeenCalled();
-  });
-
-  it('does not call back on ArrowLeft at first step', () => {
-    const onboarding = createMockOnboarding({ currentStep: 0 });
-    render(<Onboarding onboarding={onboarding} onNavigateToChat={onNavigateToChat} />);
-
-    fireEvent.keyDown(document, { key: 'ArrowLeft' });
-    expect(onboarding.back).not.toHaveBeenCalled();
+  it('skip onboarding button calls skip()', () => {
+    const onboarding = createMockOnboarding();
+    render(
+      <Onboarding onboarding={onboarding} persona={null} onPersonaComplete={onPersonaComplete} />,
+    );
+    fireEvent.click(screen.getByText('Skip onboarding'));
+    expect(onboarding.skip).toHaveBeenCalledOnce();
   });
 
   it('displays step count', () => {
     const onboarding = createMockOnboarding({ currentStep: 2 });
-    render(<Onboarding onboarding={onboarding} onNavigateToChat={onNavigateToChat} />);
+    render(
+      <Onboarding onboarding={onboarding} persona={null} onPersonaComplete={onPersonaComplete} />,
+    );
+    expect(screen.getByText(`Step 3 of ${ONBOARDING_STEPS.length}`)).toBeInTheDocument();
+  });
 
-    expect(screen.getByText(`3 / ${ONBOARDING_STEPS.length}`)).toBeInTheDocument();
+  it('renders correct number of dots', () => {
+    const onboarding = createMockOnboarding();
+    render(
+      <Onboarding onboarding={onboarding} persona={null} onPersonaComplete={onPersonaComplete} />,
+    );
+    const dots = document.querySelectorAll('.onboarding-card__dot');
+    expect(dots.length).toBe(ONBOARDING_STEPS.length);
+  });
+
+  it('does not render Back button on step 0', () => {
+    const onboarding = createMockOnboarding({ currentStep: 0 });
+    render(
+      <Onboarding onboarding={onboarding} persona={null} onPersonaComplete={onPersonaComplete} />,
+    );
+    expect(screen.queryByText('Back')).not.toBeInTheDocument();
+  });
+
+  it('title renders before illustration in the DOM on non-persona steps', () => {
+    const onboarding = createMockOnboarding({ currentStep: 1 });
+    render(
+      <Onboarding onboarding={onboarding} persona={null} onPersonaComplete={onPersonaComplete} />,
+    );
+    const title = document.querySelector('.onboarding-card__title');
+    const illustration = document.querySelector('.onboarding-card__illustration');
+    expect(title).toBeInTheDocument();
+    expect(illustration).toBeInTheDocument();
+    expect(title!.compareDocumentPosition(illustration!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+  });
+});
+
+describe('ONBOARDING_STEPS data', () => {
+  it('has exactly 6 steps', () => {
+    expect(ONBOARDING_STEPS.length).toBe(6);
+  });
+
+  it('does not contain removed step IDs', () => {
+    const ids = ONBOARDING_STEPS.map((s) => s.id);
+    expect(ids).not.toContain('meet-neo');
+    expect(ids).not.toContain('tasks-plans');
+  });
+
+  it('has the expected step order', () => {
+    const ids = ONBOARDING_STEPS.map((s) => s.id);
+    expect(ids).toEqual([
+      'name-agent',
+      'what-is-agent',
+      'agent-vs-llm',
+      'agent-not-llm-map',
+      'tools-skills',
+      'try-it',
+    ]);
   });
 });

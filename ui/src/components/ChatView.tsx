@@ -6,9 +6,12 @@ import { TaskStatusBar } from './TaskStatusBar';
 import { ContextSidebar } from './ContextSidebar';
 import { SessionStatsPanel } from './SessionStatsPanel';
 import { exportAsJson, exportAsMarkdown, downloadBlob } from '../lib/chatExport';
+import { useEmitMilestone } from '../hooks/useMilestones';
 import type { ChatState } from '../lib/chatReducer';
 import type { AgentContext } from '../lib/contextReducer';
 import type { TasksState } from '../hooks/useTasks';
+import type { Persona } from '../hooks/usePersona';
+import { getAvatar } from '../content/avatars';
 
 interface ChatViewProps {
   chatState: ChatState;
@@ -17,15 +20,27 @@ interface ChatViewProps {
   onStop: () => void;
   onReset: () => void;
   tasksState?: TasksState;
+  persona?: Persona | null;
 }
 
-export function ChatView({ chatState, context, onSend, onStop, onReset, tasksState }: ChatViewProps) {
+export function ChatView({ chatState, context, onSend, onStop, onReset, tasksState, persona }: ChatViewProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const emitMilestone = useEmitMilestone();
   const hasMessages = chatState.messages.length > 0;
+  const emittedFirstResponse = useRef(false);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatState.messages]);
+
+  useEffect(() => {
+    if (emittedFirstResponse.current) return;
+    const hasAssistantMessage = chatState.messages.some((m) => m.role === 'assistant');
+    if (hasAssistantMessage) {
+      emittedFirstResponse.current = true;
+      emitMilestone('first_response');
+    }
+  }, [chatState.messages, emitMilestone]);
 
   const handleExportJson = useCallback(() => {
     const content = exportAsJson(chatState.messages, chatState.sessionStats);
@@ -72,11 +87,11 @@ export function ChatView({ chatState, context, onSend, onStop, onReset, tasksSta
             </div>
           )}
           {chatState.messages.map((msg) => (
-            <ChatMessage key={msg.id} message={msg} />
+            <ChatMessage key={msg.id} message={msg} persona={persona} />
           ))}
           {chatState.agentStatus === 'running' && (
             <div className="chat-typing">
-              <div className="chat-typing__avatar">🤖</div>
+              <div className="chat-typing__avatar">{persona ? (getAvatar(persona.avatarId)?.emoji ?? '🤖') : '🤖'}</div>
               <div className="chat-typing__dots">
                 <span /><span /><span />
               </div>

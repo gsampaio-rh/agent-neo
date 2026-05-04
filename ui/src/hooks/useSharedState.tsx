@@ -14,10 +14,12 @@ export interface DevOverride {
   escaped?: boolean;
 }
 
+type DevOverrideUpdater = DevOverride | null | ((prev: DevOverride | null) => DevOverride | null);
+
 interface SharedStateContextValue {
   state: SharedServerState;
   devOverride: DevOverride | null;
-  setDevOverride: (override: DevOverride | null) => void;
+  setDevOverride: (override: DevOverrideUpdater) => void;
 }
 
 const INITIAL_STATE: SharedServerState = {
@@ -78,7 +80,7 @@ export function SharedStateProvider({ children }: { children: ReactNode }): Reac
       }
     : serverState;
 
-  const stableSetDevOverride = useCallback((override: DevOverride | null) => {
+  const stableSetDevOverride = useCallback((override: DevOverrideUpdater) => {
     setDevOverride(override);
   }, []);
 

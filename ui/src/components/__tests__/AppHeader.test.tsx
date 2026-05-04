@@ -64,4 +64,24 @@ describe('AppHeader', () => {
     const mapBtn = screen.getByText('Map');
     expect(mapBtn.className).toContain('neo-header__tab--active');
   });
+
+  describe('persona display', () => {
+    it('shows persona name and avatar when persona is set', () => {
+      render(<AppHeader {...defaults} persona={{ name: 'Hacker', avatarId: 'ghost' }} />);
+      expect(screen.getByText('Hacker')).toBeInTheDocument();
+      expect(screen.getByText('👻')).toBeInTheDocument();
+      expect(screen.queryByText('NEO')).not.toBeInTheDocument();
+    });
+
+    it('shows BREACHED instead of persona name when escaped', () => {
+      render(<AppHeader {...defaults} escaped persona={{ name: 'Hacker', avatarId: 'ghost' }} />);
+      expect(screen.getByText('!! BREACHED !!')).toBeInTheDocument();
+      expect(screen.queryByText('Hacker')).not.toBeInTheDocument();
+    });
+
+    it('falls back to NEO when no persona is set', () => {
+      render(<AppHeader {...defaults} persona={null} />);
+      expect(screen.getByText('NEO')).toBeInTheDocument();
+    });
+  });
 });

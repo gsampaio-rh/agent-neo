@@ -70,4 +70,20 @@ describe('ChatView', () => {
       expect(btn).toBeDisabled();
     }
   });
+
+  it('shows persona avatar in typing indicator', () => {
+    render(
+      <ChatView chatState={makeChatState({ agentStatus: 'running' })} context={defaultContext} onSend={vi.fn()} onStop={vi.fn()} onReset={vi.fn()} persona={{ name: 'Hacker', avatarId: 'ghost' }} />,
+    );
+    const typingAvatar = document.querySelector('.chat-typing__avatar');
+    expect(typingAvatar?.textContent).toBe('👻');
+  });
+
+  it('falls back to robot emoji without persona in typing indicator', () => {
+    render(
+      <ChatView chatState={makeChatState({ agentStatus: 'running' })} context={defaultContext} onSend={vi.fn()} onStop={vi.fn()} onReset={vi.fn()} />,
+    );
+    const typingAvatar = document.querySelector('.chat-typing__avatar');
+    expect(typingAvatar?.textContent).toBe('🤖');
+  });
 });

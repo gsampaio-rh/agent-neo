@@ -4,6 +4,94 @@
 
 ---
 
+## Agent Persona & Interactive Onboarding
+
+**Date:** 2026-05-04
+**Status:** Done
+
+Redesigned the onboarding from a passive slide walkthrough into a full-screen, blocking, interactive modal with 6 steps. Added agent persona customization (name + avatar) that persists across the UI. Each step contains a simulated interactive illustration that teaches a concept by doing — not just reading.
+
+### Design Decisions
+
+- **Gated modal**: The main app is locked behind onboarding. Steps can be `gated` (require interaction to enable "Next") or non-gated (auto-advance). Skip available at any point.
+- **Simulated illustrations over real interactions**: Instead of requiring the user to perform actions in the actual app (send a prompt, switch tabs), each concept is taught through a self-contained mini-illustration inside the modal card. This avoids coupling onboarding to app state and keeps the flow self-contained.
+- **Persona-first**: Step 1 is `PersonaSetup` — name input + avatar picker. The persona then appears in the header, chat messages, typing indicator, and Settings drawer throughout the session.
+- **Modular illustration files**: Each diagram is a standalone component in `content/illustrations/`, keeping the step data file slim (~65 lines).
+- **Milestone infrastructure**: `MilestoneProvider` context tracks post-onboarding user actions (`first_response`, `log_expanded`, `file_read`, `visited_map`, `persona_set`) in `localStorage`. No visual badge UI yet — infrastructure ready for future achievements sprint.
+
+### Steps
+
+| # | ID | Title | Illustration | Gated? |
+|---|---|---|---|---|
+| 1 | `name-agent` | Name Your Agent | `PersonaSetup` (name + avatar picker) | Yes |
+| 2 | `what-is-agent` | What is an AI Agent? | `AgentLoopDiagram` (auto-cycling Think→Plan→Act→Observe) | No |
+| 3 | `not-a-chatbot` | Not a Chatbot | `AgentVsLlmInteractive` (prompt selection → side-by-side LLM vs Agent animation) | Yes |
+| 4 | `agent-vs-llm` | Agent ≠ LLM | `AgentVsLlmMapDiagram` (two-pod topology with descriptions) | No |
+| 5 | `tools-skills` | Tools & Skills | `ToolsAndSkillsDiagram` (tabbed Tools/Skills explorer) | No |
+| 6 | `get-started` | Get Started | `TryItDiagram` (simulated typing animation) | No |
+
+### New Files
+
+| File | Purpose |
+|---|---|
+| `ui/src/hooks/usePersona.ts` | Persona state + localStorage persistence |
+| `ui/src/hooks/useMilestones.tsx` | MilestoneProvider context + emit/reset hooks |
+| `ui/src/content/avatars.ts` | 12 avatar definitions (emoji + label) |
+| `ui/src/components/PersonaSetup.tsx` | Name input + avatar grid, used in onboarding step 1 and Settings edit |
+| `ui/src/content/illustrations/types.ts` | Shared `IllustrationProps` interface |
+| `ui/src/content/illustrations/useTypingAnimation.ts` | Typing animation hook for side-by-side demos |
+| `ui/src/content/illustrations/AgentLoopDiagram.tsx` | Auto-cycling Think→Plan→Act→Observe loop |
+| `ui/src/content/illustrations/AgentVsLlmInteractive.tsx` | Prompt-selection → side-by-side LLM vs Agent output |
+| `ui/src/content/illustrations/AgentVsLlmMapDiagram.tsx` | Two-pod Agent/LLM topology diagram |
+| `ui/src/content/illustrations/ToolsAndSkillsDiagram.tsx` | Tabbed Tools/Skills explorer with "Why" callout |
+| `ui/src/content/illustrations/TryItDiagram.tsx` | Simulated typing animation |
+
+### Modified Files
+
+| File | Change |
+|---|---|
+| `ui/src/content/onboardingSteps.tsx` | Rewritten as slim data-only file importing from `illustrations/` |
+| `ui/src/hooks/useOnboarding.ts` | Step-based nav (`next`/`back`/`skip`/`complete`/`restart`), `gated` support |
+| `ui/src/components/Onboarding.tsx` | Full-screen gated modal, persona step, keyboard nav, skip button |
+| `ui/src/App.tsx` | Wired `usePersona`, `MilestoneProvider`, persona editing flow, persona prop threading |
+| `ui/src/components/AppHeader.tsx` | Persona avatar + name display, edit persona callback |
+| `ui/src/components/ChatMessage.tsx` | Persona avatar emoji for agent messages |
+| `ui/src/components/ChatView.tsx` | Persona in typing indicator, `first_response` milestone emission |
+| `ui/src/components/FileExplorer.tsx` | `file_read` milestone emission |
+| `ui/src/components/LiveTerminal.tsx` | `log_expanded` milestone emission |
+| `ui/src/components/SettingsDrawer.tsx` | Persona section with Edit button, `setDevOverride` callback updater |
+| `ui/src/hooks/useSharedState.tsx` | `setDevOverride` accepts functional updater (fixes stale closure) |
+| `ui/src/styles/neo.css` | Onboarding card layout, illustration styles, persona header styles |
+
+### Tests (33 new tests across 8 new test files + 8 updated tests across 3 existing files)
+
+**New test files:**
+- `AgentLoopDiagram.test.tsx` (5): node rendering, active cycling, wrap-around, feedback label
+- `AgentVsLlmInteractive.test.tsx` (6): prompt buttons, placeholder, panel display, interaction callback, idempotent callback, active state
+- `AgentVsLlmMapDiagram.test.tsx` (5): pod labels, descriptions, arrow label, hint, pod elements
+- `ToolsAndSkillsDiagram.test.tsx` (6): tab rendering, tools tab content, skills tab switch, interaction callback on both tabs visited, idempotent callback, why section
+- `TryItDiagram.test.tsx` (3): input area, empty start, typing over time
+- `usePersona.test.ts` (7): initial null, localStorage load, set/persist, trim, empty name guard, clear, corrupted JSON
+- `useMilestones.test.tsx` (6): empty set, localStorage load, emit/persist, idempotent, reset, corrupted JSON
+- `PersonaSetup.test.tsx` (8): title/input, avatar count, disabled states, complete payload, skip, selected class, prefill
+
+**Updated test files:**
+- `AppHeader.test.tsx` (+3): persona name/avatar, breached overrides persona, null fallback
+- `ChatMessage.test.tsx` (+3): persona emoji for assistant, robot fallback, user always shows 👤
+- `ChatView.test.tsx` (+2): persona avatar in typing indicator, robot fallback
+
+**Existing test files updated for new API:**
+- `useOnboarding.test.ts` (8): step nav, skip/complete, restart, totalSteps from data
+- `Onboarding.test.tsx` (12): gated/non-gated steps, persona step, layout order, dot count, keyboard nav
+- `SettingsDrawer.test.tsx` (15): persona section, dev tools with callback updater
+
+### Bugs Fixed
+
+- **Stale `emitMilestone` in `FileExplorer.tsx`**: `handleSelect` callback captured outdated `emitMilestone` ref — added to dependency array
+- **Stale `devOverride` in `SettingsDrawer.tsx`**: `setPhase`/`toggleEscaped` used stale state in quick succession — switched `setDevOverride` to accept functional updater
+
+---
+
 ## Dev Mode Map Toggles
 
 **Date:** 2026-05-03

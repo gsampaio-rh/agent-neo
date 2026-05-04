@@ -105,3 +105,28 @@ Claude Code already supports all three signals via standard OTEL env vars. The H
 - Prompt timeline (from log events)
 - Trace explorer for debugging slow agent turns
 
+---
+
+## Exploration E — Achievements & Badges
+
+Visual reward system for onboarding completion and feature exploration. The milestone infrastructure (`useMilestones` hook, `MilestoneProvider` context, `localStorage` persistence at `neo:milestones`) is already in place — it tracks `persona_set`, `first_response`, `log_expanded`, `visited_map`, `file_read`. What's missing is the visual layer.
+
+### Badge UI
+
+- Badge grid in Settings drawer or About page (small icons with earned/locked states)
+- Achievement toast: brief notification when a badge is earned (slide-in from corner, auto-dismiss)
+- Badge definitions: map milestone IDs to visual representations (icon, title, description)
+
+### Extended Milestones
+
+- `visited_map` — switch to the Map tab
+- `escape_witnessed` — be present during a bind shell breach
+- `tool_master` — trigger N distinct tool calls
+- `session_veteran` — complete N chat sessions
+
+### Considerations
+
+- Keep it lightweight — no backend, no persistence beyond `localStorage`
+- Avoid gamification fatigue — badges should feel like easter eggs, not homework
+- Consider whether badges survive onboarding reset (currently milestones are independent of onboarding state)
+

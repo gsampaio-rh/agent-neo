@@ -2,7 +2,7 @@
 
 **Status:** Sprint 4 (in progress)
 **Date:** 2026-05-02
-**Last updated:** 2026-05-02
+**Last updated:** 2026-05-04
 **Related:** [Architecture](ARCHITECTURE.md) | [Changelog](CHANGELOG.md) | [Future Explorations](FUTURE_EXPLORATIONS.md)
 
 Conventions: `[ ]` = pending | `[!]` = blocked | **Gate** = required criterion
@@ -263,6 +263,51 @@ Progress: [..........] 0%
 
 ---
 
-## ~~Sprint 10 — Onboarding Experience~~ ✓
+## ~~Sprint 10 — Agent Persona & Interactive Onboarding~~ ✓
+
+Done — see [Changelog](CHANGELOG.md#agent-persona--interactive-onboarding).
+
+Achievements & Badges deferred — milestone infrastructure (`useMilestones`) exists but visual badge UI and achievement toasts are not yet built. See [Future Explorations](FUTURE_EXPLORATIONS.md).
+
+---
+
+## Sprint 11 — Map Layout & Node Positioning
+
+The Map tab topology has layout issues: nodes overlap, group boundaries clip children, the attacker floats too far left, and bottom nodes (K8s API, Collector) are cramped. Current positions are hardcoded in `topology.ts` — they don't adapt to which nodes are visible per attack phase.
+
+```
+Progress: [..........] 0%
+```
+
+### Phase-Aware Layout
+
+Node positions should recalculate based on which nodes are present in each phase. Currently all positions are static, so `normal` (3 nodes) and `exploiting` (7 nodes) use the same coordinates.
+
+- [ ] Audit current hardcoded positions in `topology.ts` — document which nodes appear per phase and their ideal spatial relationships
+- [ ] Implement phase-aware positioning: compute `x`/`y` per node based on the active phase's node set (center the visible graph, avoid dead space)
+- [ ] Ensure group nodes (`agent-namespace`, `llm-inference`) resize to fit their children with consistent padding
+- [ ] Attacker node: position relative to agent node, not at a fixed offset — should feel "approaching" in `exploiting`, not floating in empty space
+
+### Edge Routing & Labels
+
+- [ ] Prevent edge labels from overlapping nodes (e.g., `:4444`, `8080`, `443`, `5000`)
+- [ ] Evaluate `smoothstep` or `bezier` edge types for cleaner routing around group boundaries
+- [ ] Consistent label positioning: labels should not overlap each other or sit on top of node borders
+
+### Responsive & Zoom
+
+- [ ] Auto-fit viewport on phase transitions (`fitView` with padding after node set changes)
+- [ ] Minimum zoom level to prevent the map from being too zoomed out on large screens
+- [ ] Test layout at common viewport sizes (1280×720, 1440×900, 1920×1080)
+
+### Visual Polish
+
+- [ ] Consistent spacing between namespace groups (agent-namespace ↔ llm-inference)
+- [ ] Bottom nodes (K8s API, Collector) should have clear vertical separation from the main row
+- [ ] Evaluate dagre or elkjs auto-layout as an alternative to manual positioning — trade-off: less control but zero overlap guarantee
+
+---
+
+## ~~Sprint 12 — Onboarding Experience~~ ✓
 
 Done — see [Changelog](CHANGELOG.md#onboarding-experience).

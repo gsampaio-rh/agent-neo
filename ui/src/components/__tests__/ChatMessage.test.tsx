@@ -173,4 +173,24 @@ describe('ChatMessage', () => {
       expect(screen.getByText(/truncated/)).toBeInTheDocument();
     });
   });
+
+  describe('persona avatar', () => {
+    it('shows persona emoji for assistant messages', () => {
+      const msg = makeMsg([{ kind: 'text', text: 'Hello' }]);
+      const { container } = render(<ChatMessage message={msg} persona={{ name: 'Hacker', avatarId: 'ghost' }} />);
+      expect(container.querySelector('.chat-message__avatar')?.textContent).toBe('👻');
+    });
+
+    it('falls back to robot when no persona', () => {
+      const msg = makeMsg([{ kind: 'text', text: 'Hello' }]);
+      const { container } = render(<ChatMessage message={msg} />);
+      expect(container.querySelector('.chat-message__avatar')?.textContent).toBe('🤖');
+    });
+
+    it('always shows user avatar for user messages', () => {
+      const msg: ChatMessageType = { id: 'u1', role: 'user', blocks: [{ kind: 'text', text: 'Hi' }], timestamp: '' };
+      const { container } = render(<ChatMessage message={msg} persona={{ name: 'Hacker', avatarId: 'ghost' }} />);
+      expect(container.querySelector('.chat-message__avatar')?.textContent).toBe('👤');
+    });
+  });
 });
