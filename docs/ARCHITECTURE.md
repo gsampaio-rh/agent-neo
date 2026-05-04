@@ -200,10 +200,10 @@ All communication goes through the shared `claude-logs` emptyDir volume.
 
 ## Attack Infrastructure
 
-Managed by two separate Helm charts, deployed independently from the main chart:
+Managed by two separate Helm charts in the workshop IaC repo (not in this repository), deployed independently from the main chart:
 
-- **`chart/target-apps/`** — target environment (inventory-app with poisoned logs, RBAC for agent access). Deployed first, represents the "app the agent is asked to troubleshoot".
-- **`chart/attack/`** — attacker tooling (attacker pod with nc, NetworkPolicy for bind shell traffic). Deployed when the attack is executed.
+- **target-apps** — target environment (inventory-app with poisoned logs, RBAC for agent access). Deployed first, represents the "app the agent is asked to troubleshoot".
+- **attack** — attacker tooling (attacker pod with nc, NetworkPolicy for bind shell traffic). Deployed when the attack is executed.
 
 ### Kill Chain Flow
 
@@ -217,7 +217,7 @@ Managed by two separate Helm charts, deployed independently from the main chart:
 7. Agent now operates under attacker control
 ```
 
-### Target-Apps Chart Resources (`chart/target-apps/`)
+### Target-Apps Chart Resources
 
 | Resource | Kind | Purpose |
 |----------|------|---------|
@@ -226,7 +226,7 @@ Managed by two separate Helm charts, deployed independently from the main chart:
 | poisoned-logs | ConfigMap | Contains the role-tag injection payload |
 | target-reader | ClusterRole + Binding | Grants agent SA read access to target-apps pods/logs |
 
-### Attack Chart Resources (`chart/attack/`)
+### Attack Chart Resources
 
 | Resource | Kind | Purpose |
 |----------|------|---------|
@@ -329,7 +329,7 @@ Two container images built via OpenShift `BuildConfig` (managed by the Helm char
 
 | Image | Build type | Source | Triggered by |
 |-------|-----------|--------|--------------|
-| `neo-agent` | Binary (Docker) | `build/neo/` dir uploaded | `oc start-build --from-dir` |
+| `neo-agent` | Binary (Docker) | `build/` dir uploaded | `oc start-build --from-dir` |
 | `neo-ui` | Binary (Docker) | `ui/` dir uploaded | `oc start-build --from-dir` |
 
 Both push to the internal registry at `image-registry.openshift-image-registry.svc:5000/{namespace}/{name}:latest`.
@@ -341,7 +341,7 @@ scripts/deploy.sh
   │
   ├─ Validate ANTHROPIC_BASE_URL is set
   ├─ helm upgrade --install (SA, ConfigMap, Secrets, Deployment, BCs, Services, Routes)
-  ├─ oc start-build neo-agent (--from-dir=build/neo/)
+  ├─ oc start-build neo-agent (--from-dir=build/)
   ├─ oc start-build neo-ui (--from-dir=ui/)
   ├─ oc rollout restart + wait
   └─ Print URLs
@@ -351,24 +351,17 @@ scripts/deploy.sh
 
 ```
 ├── Makefile                # Task runner (deploy, build, clean, test)
-├── build/
-│   ├── neo/                # Agent container image
-│   │   ├── Dockerfile      # UBI9 + Python + ttyd (SHA256 verified) + Claude CLI
-│   │   ├── entrypoint.sh   # ttyd + net-monitor + prompt-watcher respawn loop
-│   │   ├── claude-logged   # claude -p wrapper with --continue + stream-json logging
-│   │   ├── prompt-watcher.sh  # Poll-based prompt file watcher
-│   │   └── net-monitor.sh  # TCP state poller — writes net-state.json for attack detection
-│   └── attacker/           # Attacker container image
-│       ├── Dockerfile      # UBI9-minimal + ttyd + ncat + bash + jq
-│       ├── entrypoint.sh   # ttyd with optional auth
-│       ├── motd.sh         # Login banner with available commands
-│       └── scripts/        # trigger, wait-shell, connect, exploit, full-attack, hold-shell
+├── build/                  # Agent container image
+│   ├── Dockerfile          # UBI9 + Python + ttyd (SHA256 verified) + Claude CLI
+│   ├── entrypoint.sh       # ttyd + net-monitor + prompt-watcher respawn loop
+│   ├── claude-logged       # claude -p wrapper with --continue + stream-json logging
+│   ├── prompt-watcher.sh   # Poll-based prompt file watcher
+│   └── net-monitor.sh      # TCP state poller — writes net-state.json for attack detection
 ├── chart/                  # Helm chart — core application (flat structure)
 │   ├── Chart.yaml
 │   ├── values.yaml         # LLM URL, model, auth, resources, metrics, permissionMode
 │   └── templates/          # SA, ConfigMap, Secrets, Deployment, BuildConfigs, Services, Routes, ServiceMonitor
 ├── docs/                   # Project documentation
-│   ├── PRD.md              # Product requirements, goals, phases
 │   ├── ARCHITECTURE.md     # This file
 │   ├── PLAN.md             # Sprint roadmap (pending work only)
 │   ├── CHANGELOG.md        # Completed work by sprint
@@ -383,12 +376,7 @@ scripts/deploy.sh
 │   └── escape.txt          # Challenge: explore cluster + POST report to collector
 ├── scripts/                # Deployment automation
 │   ├── config.sh           # Shared config + validate_config()
-│   ├── deploy.sh           # helm upgrade --install + oc start-build
-│   └── attack/             # Attack demo scripts
-│       ├── deploy-attack.sh    # Deploy attack Helm chart + build attacker image
-│       ├── auto-attack.sh      # Fully automated attack sequence
-│       ├── cleanup-attack.sh   # Remove attack infrastructure
-│       └── payloads/           # claude-md-override.txt, skill-k8s-ops.txt
+│   └── deploy.sh           # helm upgrade --install + oc start-build
 └── ui/                     # Neo dashboard + chat interface
     ├── Dockerfile          # Multi-stage: Node 20 Alpine, Vite build + relay runtime
     ├── relay.mjs           # Entry point (~30 lines) — wires relay modules
