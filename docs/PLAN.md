@@ -279,9 +279,20 @@ The Map tab topology has layout issues: nodes overlap, group boundaries clip chi
 Progress: [..........] 0%
 ```
 
+### Remove K8s API & Collector nodes
+
+The `k8s-api` and `collector` nodes in `topology.ts` are remnants from when outbound connections (`:443`, `:5000`) were part of attack phase detection. Since the escape rework (bind-shell-only detection), these nodes no longer represent anything meaningful in the kill chain — the agent's outbound calls to K8s API are legitimate, and the "collector" concept was never wired to a real target. Removing them simplifies the map to what matters: Agent, LLM, and Attacker.
+
+- [ ] Remove `k8s-api` and `collector` node definitions from `buildNodes()` in `topology.ts`
+- [ ] Remove `agent-k8s` and `agent-collector` edge definitions from `buildEdges()`
+- [ ] Remove `LAYOUT.k8sApi` and `LAYOUT.collector` position constants
+- [ ] Remove the `externalTarget` node type from `nodes.tsx` (if no longer used)
+- [ ] Update `MapArea.test.tsx` — adjust node/edge count assertions for `exploiting` phase
+- [ ] Remove any CSS specific to external target nodes (`.map-node--external` etc.)
+
 ### Phase-Aware Layout
 
-Node positions should recalculate based on which nodes are present in each phase. Currently all positions are static, so `normal` (3 nodes) and `exploiting` (7 nodes) use the same coordinates.
+Node positions should recalculate based on which nodes are present in each phase. Currently all positions are static, so `normal` (3 nodes) and `exploiting` (5 nodes after cleanup) use the same coordinates.
 
 - [ ] Audit current hardcoded positions in `topology.ts` — document which nodes appear per phase and their ideal spatial relationships
 - [ ] Implement phase-aware positioning: compute `x`/`y` per node based on the active phase's node set (center the visible graph, avoid dead space)
@@ -290,7 +301,7 @@ Node positions should recalculate based on which nodes are present in each phase
 
 ### Edge Routing & Labels
 
-- [ ] Prevent edge labels from overlapping nodes (e.g., `:4444`, `8080`, `443`, `5000`)
+- [ ] Prevent edge labels from overlapping nodes (e.g., `:4444`, `8080`)
 - [ ] Evaluate `smoothstep` or `bezier` edge types for cleaner routing around group boundaries
 - [ ] Consistent label positioning: labels should not overlap each other or sit on top of node borders
 
@@ -303,7 +314,6 @@ Node positions should recalculate based on which nodes are present in each phase
 ### Visual Polish
 
 - [ ] Consistent spacing between namespace groups (agent-namespace ↔ llm-inference)
-- [ ] Bottom nodes (K8s API, Collector) should have clear vertical separation from the main row
 - [ ] Evaluate dagre or elkjs auto-layout as an alternative to manual positioning — trade-off: less control but zero overlap guarantee
 
 ---
