@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { ReactFlow, ReactFlowProvider, Background, BackgroundVariant } from '@xyflow/react';
+import { useEffect, useMemo, useRef } from 'react';
+import { ReactFlow, ReactFlowProvider, Background, BackgroundVariant, useReactFlow } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import type { AgentAction } from '../lib/contextReducer';
 import type { AttackPhase } from '../hooks/useAttackPhase';
@@ -17,6 +17,16 @@ interface MapAreaProps {
 function MapContent({ attackPhase, agentAction }: MapAreaProps) {
   const nodes = useMemo(() => buildNodes(attackPhase, agentAction), [attackPhase, agentAction]);
   const edges = useMemo(() => buildEdges(attackPhase), [attackPhase]);
+  const { fitView } = useReactFlow();
+  const prevPhaseRef = useRef(attackPhase);
+
+  useEffect(() => {
+    if (prevPhaseRef.current !== attackPhase) {
+      prevPhaseRef.current = attackPhase;
+      const timer = setTimeout(() => fitView({ ...FIT_VIEW_OPTIONS, duration: 300 }), 50);
+      return () => clearTimeout(timer);
+    }
+  }, [attackPhase, fitView]);
 
   return (
     <div className="map-area" data-testid="map-area">

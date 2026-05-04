@@ -24,7 +24,6 @@ export function AgentPodNode({ data }: NodeProps) {
         <span className="map-node__port-badge" data-testid="port-badge">:4444 OPEN</span>
       )}
       <Handle type="source" id="right" position={Position.Right} />
-      <Handle type="source" id="bottom" position={Position.Bottom} />
     </div>
   );
 }
@@ -52,17 +51,6 @@ export function AttackerNode({ data }: NodeProps) {
   );
 }
 
-export function ExternalTargetNode({ data }: NodeProps) {
-  const { label, attackPhase } = data as MapNodeData;
-  return (
-    <div className={`map-node map-node--target map-node--${attackPhase}`} data-testid={`node-target-${label}`}>
-      <Handle type="target" id="top" position={Position.Top} />
-      <div className="map-node__icon">🎯</div>
-      <span className="map-node__label">{label}</span>
-    </div>
-  );
-}
-
 export function NamespaceNode({ data }: NodeProps) {
   const { label, attackPhase } = data as MapNodeData;
   return (
@@ -76,6 +64,5 @@ export const nodeTypes = {
   agentPod: AgentPodNode,
   llmEndpoint: LLMEndpointNode,
   attacker: AttackerNode,
-  externalTarget: ExternalTargetNode,
   namespace: NamespaceNode,
 } as const;

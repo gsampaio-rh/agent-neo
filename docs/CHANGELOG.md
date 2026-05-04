@@ -4,6 +4,33 @@
 
 ---
 
+## Map Layout & Node Positioning
+
+**Date:** 2026-05-04
+**Status:** Done
+
+Simplified the Map tab topology and introduced phase-aware dynamic layout. Removed obsolete `k8s-api` and `collector` nodes (remnants from pre-bind-shell detection), replaced static hardcoded positions with a `computeLayout()` function that produces different layouts per attack phase, and added animated viewport transitions on phase changes.
+
+### Key Changes
+
+- **Removed obsolete nodes:** `k8s-api`, `collector` nodes and their edges (`agent-k8s`, `agent-collector`) deleted from topology. `ExternalTargetNode` component and `externalTarget` node type removed. Associated CSS (`.map-node--target`, `.map-edge--exploit`, `map-edge-flow-exploit` keyframes) cleaned up. Node count in `exploiting` phase reduced from 7 to 5, edges from 4 to 2.
+- **Phase-aware layout:** Static `LAYOUT` object replaced with `computeLayout(attackPhase)`. In `normal`/`compromised`, namespaces sit side-by-side centered. In `exploiting`, graph shifts right to make room for the attacker node, which is positioned relative to the agent namespace (not at a fixed absolute offset). Decision documented: dagre/elkjs skipped — manual positioning gives pixel-perfect control for 3-5 nodes.
+- **Edge routing:** Switched from default bezier to `smoothstep` edges for cleaner right-angle routing around namespace group boundaries. Increased label background padding to prevent overlap with node borders.
+- **Responsive fitView:** Added `useReactFlow().fitView()` call on `attackPhase` transitions with 300ms animated duration, so the viewport auto-adjusts when nodes appear/disappear.
+- **Visual polish:** Added CSS transition on namespace border/background for smoother phase changes. Tightened namespace padding.
+
+### Modified Files
+
+| File | Change |
+|---|---|
+| `ui/src/components/map/topology.ts` | Replaced `LAYOUT` with `computeLayout()`, removed k8s-api/collector nodes and edges, switched to smoothstep edges |
+| `ui/src/components/map/nodes.tsx` | Removed `ExternalTargetNode`, `bottom` handle from `AgentPodNode`, `externalTarget` from registry |
+| `ui/src/components/MapArea.tsx` | Added `useReactFlow().fitView()` on phase transitions |
+| `ui/src/components/__tests__/MapArea.test.tsx` | Updated counts (5 nodes/2 edges in exploiting), added `computeLayout` tests |
+| `ui/src/styles/neo.css` | Removed `.map-node--target`, `.map-edge--exploit` styles, added namespace transition |
+
+---
+
 ## Agent Persona & Interactive Onboarding
 
 **Date:** 2026-05-04

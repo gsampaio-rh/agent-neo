@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildNodes, buildEdges } from '../map/topology';
+import { buildNodes, buildEdges, computeLayout } from '../map/topology';
 
 describe('buildNodes', () => {
   it('returns base nodes in normal phase (agent, llm, 2 namespaces)', () => {
@@ -17,13 +17,13 @@ describe('buildNodes', () => {
     expect(ids).not.toContain('collector');
   });
 
-  it('includes attacker + external targets in exploiting phase', () => {
+  it('includes attacker in exploiting phase', () => {
     const nodes = buildNodes('exploiting', 'idle');
-    expect(nodes).toHaveLength(7);
+    expect(nodes).toHaveLength(5);
     const ids = nodes.map(n => n.id);
     expect(ids).toContain('attacker');
-    expect(ids).toContain('k8s-api');
-    expect(ids).toContain('collector');
+    expect(ids).not.toContain('k8s-api');
+    expect(ids).not.toContain('collector');
   });
 
   it('passes attackPhase to all node data', () => {
@@ -55,6 +55,25 @@ describe('buildNodes', () => {
   });
 });
 
+describe('computeLayout', () => {
+  it('positions namespaces side-by-side in normal phase', () => {
+    const layout = computeLayout('normal');
+    expect(layout.nsLlm.x).toBeGreaterThan(layout.nsAgent.x);
+    expect(layout.nsAgent.y).toBe(layout.nsLlm.y);
+  });
+
+  it('positions attacker left of agent namespace in exploiting phase', () => {
+    const layout = computeLayout('exploiting');
+    expect(layout.attacker.x).toBeLessThan(layout.nsAgent.x);
+  });
+
+  it('shifts namespaces right in exploiting to make room for attacker', () => {
+    const normal = computeLayout('normal');
+    const exploiting = computeLayout('exploiting');
+    expect(exploiting.nsAgent.x).toBeGreaterThan(normal.nsAgent.x);
+  });
+});
+
 describe('buildEdges', () => {
   it('returns 1 base edge in normal phase (agent-llm)', () => {
     const edges = buildEdges('normal');
@@ -70,13 +89,13 @@ describe('buildEdges', () => {
     expect(ids).not.toContain('agent-k8s');
   });
 
-  it('adds all attack edges in exploiting phase', () => {
+  it('adds attacker edge in exploiting phase', () => {
     const edges = buildEdges('exploiting');
-    expect(edges).toHaveLength(4);
+    expect(edges).toHaveLength(2);
     const ids = edges.map(e => e.id);
     expect(ids).toContain('attacker-agent');
-    expect(ids).toContain('agent-k8s');
-    expect(ids).toContain('agent-collector');
+    expect(ids).not.toContain('agent-k8s');
+    expect(ids).not.toContain('agent-collector');
   });
 
   it('marks attack edges with attack class', () => {
@@ -84,12 +103,6 @@ describe('buildEdges', () => {
     const attackEdge = edges.find(e => e.id === 'attacker-agent');
     expect(attackEdge?.className).toContain('map-edge--attack');
     expect(attackEdge?.animated).toBe(true);
-  });
-
-  it('marks exploit edges with exploit class', () => {
-    const edges = buildEdges('exploiting');
-    const k8sEdge = edges.find(e => e.id === 'agent-k8s');
-    expect(k8sEdge?.className).toContain('map-edge--exploit');
   });
 
   it('base edges have normal class', () => {
