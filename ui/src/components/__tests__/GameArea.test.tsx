@@ -15,18 +15,20 @@ function makeContext(overrides: Partial<AgentContext> = {}): AgentContext {
 const KATA_ISOLATION: IsolationState = {
   runtime: 'kata',
   checks: [
-    { name: 'namespace_escape', label: 'Namespace escape', pass: true, detail: 'unshare blocked by guest kernel boundary' },
-    { name: 'host_pid', label: 'Host filesystem', pass: true, detail: 'host filesystem isolated by Kata guest kernel' },
-    { name: 'kernel_module', label: 'Kernel modules', pass: true, detail: 'modprobe blocked by hypervisor boundary' },
+    { name: 'kata_cmdline', label: 'Kata agent cmdline', pass: true, detail: 'Kata agent params found in /proc/cmdline' },
+    { name: 'block_devices', label: 'Block device isolation', pass: true, detail: '/sys/block/ is empty (virtio-fs rootfs)' },
+    { name: 'acpi_tables', label: 'ACPI table exposure', pass: true, detail: 'ACPI tables present: APIC, DSDT, FACP, FACS, MCFG' },
+    { name: 'boot_image', label: 'Host boot signature', pass: true, detail: 'no BOOT_IMAGE= in /proc/cmdline (not a host kernel)' },
   ],
 };
 
 const RUNC_ISOLATION: IsolationState = {
   runtime: 'runc',
   checks: [
-    { name: 'namespace_escape', label: 'Namespace escape', pass: false, detail: 'unshare succeeded — PID/mount namespaces can be created, container escape possible' },
-    { name: 'host_pid', label: 'Host filesystem', pass: false, detail: 'host root visible: bin, dev, etc, home, lib, proc, root, usr' },
-    { name: 'kernel_module', label: 'Kernel modules', pass: false, detail: 'modprobe succeeded — kernel modules loadable from container' },
+    { name: 'kata_cmdline', label: 'Kata agent cmdline', pass: false, detail: 'no Kata agent params in /proc/cmdline' },
+    { name: 'block_devices', label: 'Block device isolation', pass: false, detail: 'block devices visible: loop0, nvme0n1' },
+    { name: 'acpi_tables', label: 'ACPI table exposure', pass: false, detail: 'no ACPI tables (host kernel does not expose them to containers)' },
+    { name: 'boot_image', label: 'Host boot signature', pass: false, detail: 'BOOT_IMAGE= present in /proc/cmdline (host kernel)' },
   ],
 };
 
@@ -165,10 +167,11 @@ describe('GameArea isolation status', () => {
     expect(screen.getByText('isolation')).toBeInTheDocument();
     expect(screen.getByText('kata')).toBeInTheDocument();
     const isolationBlockedItems = container.querySelectorAll('.sidebar__isolation-status--pass');
-    expect(isolationBlockedItems).toHaveLength(3);
-    expect(screen.getByText('Namespace escape')).toBeInTheDocument();
-    expect(screen.getByText('Host filesystem')).toBeInTheDocument();
-    expect(screen.getByText('Kernel modules')).toBeInTheDocument();
+    expect(isolationBlockedItems).toHaveLength(4);
+    expect(screen.getByText('Kata agent cmdline')).toBeInTheDocument();
+    expect(screen.getByText('Block device isolation')).toBeInTheDocument();
+    expect(screen.getByText('ACPI table exposure')).toBeInTheDocument();
+    expect(screen.getByText('Host boot signature')).toBeInTheDocument();
   });
 
   it('renders EXPOSED badges with runc runtime', () => {
@@ -184,7 +187,7 @@ describe('GameArea isolation status', () => {
     );
     expect(screen.getByText('runc')).toBeInTheDocument();
     const exposedItems = container.querySelectorAll('.sidebar__isolation-status--fail');
-    expect(exposedItems).toHaveLength(3);
+    expect(exposedItems).toHaveLength(4);
   });
 
   it('renders detail text for each check', () => {
@@ -198,8 +201,8 @@ describe('GameArea isolation status', () => {
         isolation={RUNC_ISOLATION}
       />
     );
-    expect(screen.getByText(/host root visible/)).toBeInTheDocument();
-    expect(screen.getByText(/kernel modules loadable/)).toBeInTheDocument();
+    expect(screen.getByText(/block devices visible/)).toBeInTheDocument();
+    expect(screen.getByText(/no ACPI tables/)).toBeInTheDocument();
   });
 
   it('renders pass/fail dots with correct CSS classes', () => {
@@ -214,7 +217,7 @@ describe('GameArea isolation status', () => {
       />
     );
     const dots = container.querySelectorAll('.sidebar__isolation-dot--pass');
-    expect(dots).toHaveLength(3);
+    expect(dots).toHaveLength(4);
   });
 
   it('renders fail dots with runc isolation', () => {
@@ -229,6 +232,6 @@ describe('GameArea isolation status', () => {
       />
     );
     const dots = container.querySelectorAll('.sidebar__isolation-dot--fail');
-    expect(dots).toHaveLength(3);
+    expect(dots).toHaveLength(4);
   });
 });

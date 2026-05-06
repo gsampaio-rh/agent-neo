@@ -1,3 +1,4 @@
+{{- if .Values.build.enabled }}
 apiVersion: build.openshift.io/v1
 kind: BuildConfig
 metadata:
@@ -28,3 +29,4 @@ spec:
     - type: ConfigChange
   resources:
     {{- toYaml .Values.build.ui.resources | nindent 4 }}
+{{- end }}

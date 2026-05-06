@@ -4,6 +4,58 @@
 
 ---
 
+## Fix Kata Runtime Detection + Conditional Build Resources
+
+**Date:** 2026-05-06
+**Status:** Done
+
+### Kata Detection Rewrite
+
+The `isolation-check.sh` script reported `"runtime": "runc"` even inside Kata microVMs. The three original heuristics (`unshare`, `/proc/1/root`, `modprobe`) tested container escape vectors, not runtime identity — all three produced identical results under OpenShift's `restricted-v2` SCC regardless of runc or Kata.
+
+Replaced with a weighted multi-signal approach using signals that genuinely differ between Kata guest VMs and runc containers:
+
+| Signal | Weight | Why it works |
+|--------|--------|--------------|
+| `agent.log=` in `/proc/cmdline` | 3 | Kata agent injects params into guest kernel cmdline |
+| `/sys/block/` empty | 2 | Kata uses virtio-fs — no block devices exposed |
+| `/sys/firmware/acpi/tables/` exists | 1 | Kata's QEMU exposes emulated ACPI tables |
+| No `BOOT_IMAGE=` in `/proc/cmdline` | 1 | Host RHCOS always has this; Kata guest does not |
+
+Score >= 3 = `kata`. The cmdline check alone (weight 3) is sufficient; secondary signals provide defense in depth.
+
+| File | Change |
+|------|--------|
+| `build/isolation-check.sh` | Rewrote detection logic with 4 weighted signals |
+| `tests/build/isolation-check.test.sh` | Updated schema: 4 checks, new names, score field |
+| `ui/relay/__tests__/state.test.js` | Updated all isolation fixtures |
+| `ui/src/components/__tests__/GameArea.test.tsx` | Updated all isolation fixtures and count assertions |
+
+### Conditional Build Resources
+
+Added `build.enabled` flag (default: `true`) so multiple chart releases can share the same images — one release builds, others consume with `build.enabled: false`.
+
+| File | Change |
+|------|--------|
+| `chart/values.yaml` | Added `build.enabled: true` |
+| `chart/templates/buildconfig-agent.yaml` | Wrapped in `{{- if .Values.build.enabled }}` |
+| `chart/templates/buildconfig-ui.yaml` | Wrapped in `{{- if .Values.build.enabled }}` |
+| `chart/templates/imagestream-agent.yaml` | Wrapped in `{{- if .Values.build.enabled }}` |
+| `chart/templates/imagestream-ui.yaml` | Wrapped in `{{- if .Values.build.enabled }}` |
+| `tests/helm/template.test.sh` | +5 assertions for build enabled/disabled |
+
+### Scheduling Support
+
+Added `runtime.affinity` and `runtime.tolerations` to the Helm chart for granular pod scheduling control beyond `nodeSelector`.
+
+| File | Change |
+|------|--------|
+| `chart/values.yaml` | Added `runtime.affinity: {}`, `runtime.tolerations: []` |
+| `chart/templates/deployment.yaml` | Conditional `affinity` and `tolerations` blocks |
+| `tests/helm/template.test.sh` | +4 assertions for affinity/tolerations |
+
+---
+
 ## Fix Profiler Test Build + Add TypeScript Typecheck Gate
 
 **Date:** 2026-05-06

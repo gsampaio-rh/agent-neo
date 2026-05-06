@@ -179,6 +179,20 @@ assert_pass "agent-metrics Service rendered" grep -q 'agent-metrics' "$TMPDIR_TE
 # No otel-metrics port when telemetry disabled
 assert_fail "no otel-metrics port when telemetry off" grep -q 'otel-metrics' "$TMPDIR_TEST/telemetry-off.yaml"
 
+# --- Build enabled/disabled tests ---
+
+# BuildConfig and ImageStream rendered by default (build.enabled: true)
+assert_pass "BuildConfig rendered by default" grep -q 'kind: BuildConfig' "$TMPDIR_TEST/full.yaml"
+assert_pass "ImageStream rendered by default" grep -q 'kind: ImageStream' "$TMPDIR_TEST/full.yaml"
+
+# No BuildConfig or ImageStream when build.enabled=false
+helm template test-release "$CHART_DIR" \
+  --set config.anthropicBaseUrl=http://test.example.com \
+  --set build.enabled=false > "$TMPDIR_TEST/no-build.yaml" 2>&1
+assert_fail "no BuildConfig when build.enabled false" grep -q 'kind: BuildConfig' "$TMPDIR_TEST/no-build.yaml"
+assert_fail "no ImageStream when build.enabled false" grep -q 'kind: ImageStream' "$TMPDIR_TEST/no-build.yaml"
+assert_pass "Deployment still rendered when build.enabled false" grep -q 'kind: Deployment' "$TMPDIR_TEST/no-build.yaml"
+
 # --- Build source type tests ---
 
 # Default is Git source (from values.yaml)
@@ -244,6 +258,27 @@ helm template test-release "$CHART_DIR" \
   --set 'runtime.nodeSelector.node\.kubernetes\.io/instance-type=m5.metal' > "$TMPDIR_TEST/kata-off-ns.yaml" 2>&1
 assert_fail "no runtimeClassName when kata disabled with nodeSelector" grep -q 'runtimeClassName' "$TMPDIR_TEST/kata-off-ns.yaml"
 assert_pass "nodeSelector still rendered when kata disabled but nodeSelector set" grep -q 'nodeSelector' "$TMPDIR_TEST/kata-off-ns.yaml"
+
+# --- Affinity / tolerations tests ---
+
+# No affinity when runtime.affinity is empty (default)
+assert_fail "no affinity by default" grep -q 'affinity' "$TMPDIR_TEST/full.yaml"
+
+# Affinity rendered when runtime.affinity is set
+helm template test-release "$CHART_DIR" \
+  --set config.anthropicBaseUrl=http://test.example.com \
+  --set-json 'runtime.affinity={"nodeAffinity":{"requiredDuringSchedulingIgnoredDuringExecution":{"nodeSelectorTerms":[{"matchExpressions":[{"key":"node.kubernetes.io/instance-type","operator":"In","values":["m6a.4xlarge"]}]}]}}}' > "$TMPDIR_TEST/affinity.yaml" 2>&1
+assert_pass "affinity rendered when runtime.affinity set" grep -q 'affinity' "$TMPDIR_TEST/affinity.yaml"
+assert_pass "nodeAffinity in rendered output" grep -q 'nodeAffinity' "$TMPDIR_TEST/affinity.yaml"
+
+# No tolerations when runtime.tolerations is empty (default)
+assert_fail "no tolerations by default" grep -q 'tolerations' "$TMPDIR_TEST/full.yaml"
+
+# Tolerations rendered when runtime.tolerations is set
+helm template test-release "$CHART_DIR" \
+  --set config.anthropicBaseUrl=http://test.example.com \
+  --set-json 'runtime.tolerations=[{"key":"kata","operator":"Equal","value":"true","effect":"NoSchedule"}]' > "$TMPDIR_TEST/tolerations.yaml" 2>&1
+assert_pass "tolerations rendered when runtime.tolerations set" grep -q 'tolerations' "$TMPDIR_TEST/tolerations.yaml"
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed"

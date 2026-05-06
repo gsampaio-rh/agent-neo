@@ -381,20 +381,24 @@ describe('StateManager isolation', () => {
   const KATA_STATE = {
     timestamp: '2026-05-06T14:30:00Z',
     runtime: 'kata',
+    score: 7,
     checks: [
-      { name: 'namespace_escape', label: 'Kernel namespace escape (unshare)', pass: true },
-      { name: 'host_pid', label: 'Host PID namespace (/proc/1/root)', pass: true },
-      { name: 'kernel_module', label: 'Kernel module load (modprobe)', pass: true },
+      { name: 'kata_cmdline', label: 'Kata agent cmdline', pass: true, detail: 'Kata agent params found in /proc/cmdline' },
+      { name: 'block_devices', label: 'Block device isolation', pass: true, detail: '/sys/block/ is empty (virtio-fs rootfs)' },
+      { name: 'acpi_tables', label: 'ACPI table exposure', pass: true, detail: 'ACPI tables present: APIC, DSDT, FACP, FACS, MCFG' },
+      { name: 'boot_image', label: 'Host boot signature', pass: true, detail: 'no BOOT_IMAGE= in /proc/cmdline (not a host kernel)' },
     ],
   };
 
   const RUNC_STATE = {
     timestamp: '2026-05-06T14:30:00Z',
     runtime: 'runc',
+    score: 0,
     checks: [
-      { name: 'namespace_escape', label: 'Kernel namespace escape (unshare)', pass: false },
-      { name: 'host_pid', label: 'Host PID namespace (/proc/1/root)', pass: false },
-      { name: 'kernel_module', label: 'Kernel module load (modprobe)', pass: false },
+      { name: 'kata_cmdline', label: 'Kata agent cmdline', pass: false, detail: 'no Kata agent params in /proc/cmdline' },
+      { name: 'block_devices', label: 'Block device isolation', pass: false, detail: 'block devices visible: loop0, nvme0n1' },
+      { name: 'acpi_tables', label: 'ACPI table exposure', pass: false, detail: 'no ACPI tables (host kernel does not expose them to containers)' },
+      { name: 'boot_image', label: 'Host boot signature', pass: false, detail: 'BOOT_IMAGE= present in /proc/cmdline (host kernel)' },
     ],
   };
 
@@ -408,7 +412,7 @@ describe('StateManager isolation', () => {
     mgr = new StateManager(dir);
     const iso = mgr.getState().isolation;
     assert.equal(iso.runtime, 'kata');
-    assert.equal(iso.checks.length, 3);
+    assert.equal(iso.checks.length, 4);
     assert.ok(iso.checks.every(c => c.pass === true));
   });
 
@@ -457,10 +461,12 @@ describe('handleGetState includes isolation', () => {
     writeFileSync(join(dir, 'isolation-state.json'), JSON.stringify({
       timestamp: '2026-05-06T14:30:00Z',
       runtime: 'runc',
+      score: 0,
       checks: [
-        { name: 'namespace_escape', label: 'Kernel namespace escape (unshare)', pass: false },
-        { name: 'host_pid', label: 'Host PID namespace (/proc/1/root)', pass: false },
-        { name: 'kernel_module', label: 'Kernel module load (modprobe)', pass: false },
+        { name: 'kata_cmdline', label: 'Kata agent cmdline', pass: false, detail: 'no Kata agent params in /proc/cmdline' },
+        { name: 'block_devices', label: 'Block device isolation', pass: false, detail: 'block devices visible: loop0, nvme0n1' },
+        { name: 'acpi_tables', label: 'ACPI table exposure', pass: false, detail: 'no ACPI tables' },
+        { name: 'boot_image', label: 'Host boot signature', pass: false, detail: 'BOOT_IMAGE= present in /proc/cmdline' },
       ],
     }));
     mgr = new StateManager(dir);
@@ -472,6 +478,6 @@ describe('handleGetState includes isolation', () => {
     handleGetState({}, res, { stateManager: mgr });
     assert.equal(res.status, 200);
     assert.equal(res.body.isolation.runtime, 'runc');
-    assert.equal(res.body.isolation.checks.length, 3);
+    assert.equal(res.body.isolation.checks.length, 4);
   });
 });

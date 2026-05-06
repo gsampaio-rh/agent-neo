@@ -2,9 +2,8 @@
 # Test isolation-check.sh output format: runs the script and validates the JSON
 # structure in isolation-state.json.
 #
-# On macOS/dev, the isolation checks succeed (runc-like behavior) because
-# unshare, /proc/1/root, and modprobe either work or are absent. The test
-# validates the output format regardless of the runtime.
+# On macOS/dev the script detects runc (no Kata signals present). The test
+# validates the output schema regardless of the runtime detected.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -52,12 +51,14 @@ assert 'timestamp' in data, 'missing timestamp'
 assert 'runtime' in data, 'missing runtime'
 assert isinstance(data['runtime'], str), 'runtime is not string'
 assert data['runtime'] in ('runc', 'kata'), f'runtime is {data[\"runtime\"]}, expected runc or kata'
+assert 'score' in data, 'missing score'
+assert isinstance(data['score'], int), 'score is not int'
 
 assert 'checks' in data, 'missing checks'
 assert isinstance(data['checks'], list), 'checks is not list'
-assert len(data['checks']) == 3, f'expected 3 checks, got {len(data[\"checks\"])}'
+assert len(data['checks']) == 4, f'expected 4 checks, got {len(data[\"checks\"])}'
 
-expected_names = {'namespace_escape', 'host_pid', 'kernel_module'}
+expected_names = {'kata_cmdline', 'block_devices', 'acpi_tables', 'boot_image'}
 actual_names = set()
 for check in data['checks']:
     assert 'name' in check, 'check missing name'
@@ -74,16 +75,15 @@ for check in data['checks']:
 assert actual_names == expected_names, f'unexpected check names: {actual_names}'
 "
 
-# Test 3: runtime field matches check results
-assert_pass "runtime matches check results" python3 -c "
+# Test 3: runtime is kata iff score >= 3
+assert_pass "runtime matches score threshold" python3 -c "
 import json
 with open('$TMPDIR_BASE/isolation-state.json') as f:
     data = json.load(f)
-all_pass = all(c['pass'] for c in data['checks'])
-if all_pass:
-    assert data['runtime'] == 'kata', f'all checks pass but runtime is {data[\"runtime\"]}'
+if data['score'] >= 3:
+    assert data['runtime'] == 'kata', f'score={data[\"score\"]} but runtime is {data[\"runtime\"]}'
 else:
-    assert data['runtime'] == 'runc', f'some checks fail but runtime is {data[\"runtime\"]}'
+    assert data['runtime'] == 'runc', f'score={data[\"score\"]} but runtime is {data[\"runtime\"]}'
 "
 
 # Test 4: no leftover .tmp file (atomic write)

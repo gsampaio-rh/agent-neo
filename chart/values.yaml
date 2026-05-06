@@ -90,6 +90,7 @@ resources:
       memory: 256Mi
 
 build:
+  enabled: true
   source:
     type: Git               # Git | Binary
     git:
@@ -125,3 +126,5 @@ runtime:
   kata:
     enabled: false
   nodeSelector: {}
+  affinity: {}
+  tolerations: []
