@@ -13,6 +13,14 @@ set -euo pipefail
 STATE_DIR="${CLAUDE_LOG_DIR:-/tmp/claude-logs}"
 STATE_FILE="$STATE_DIR/isolation-state.json"
 
+# Kata guest VM takes ~1-2s to mount pseudo-filesystems after container
+# start. Wait for /proc/cmdline to be populated before running checks.
+# In runc this passes instantly (procfs is already mounted by the host).
+for _retry in $(seq 1 5); do
+  [[ -r /proc/cmdline ]] && [[ -s /proc/cmdline ]] && break
+  sleep 1
+done
+
 json_escape() {
   printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g' | tr '\n' ' ' | head -c 200
 }
