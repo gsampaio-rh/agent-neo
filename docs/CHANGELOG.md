@@ -4,6 +4,40 @@
 
 ---
 
+## Fix Profiler Test Build + Add TypeScript Typecheck Gate
+
+**Date:** 2026-05-06
+**Status:** Done
+
+Fixed a TypeScript build error (missing `isolation` prop in `profiler.test.tsx`) that broke the OpenShift container build but was invisible during local dev. Root cause: Vite and Vitest both transpile TypeScript without type checking, so errors only surfaced in the Dockerfile's `tsc -b && vite build` step.
+
+Added a typecheck gate at three levels to prevent this class of bug from reaching production again.
+
+### Build Fix
+
+- `ui/src/__tests__/profiler.test.tsx`: Added `isolation: null` to all `GameArea` renders (required after Kata isolation support added the prop to `GameAreaProps`)
+
+### Typecheck Infrastructure
+
+| Layer | What |
+|-------|------|
+| `npm run typecheck` | New script in `ui/package.json` — runs `tsc -b --noEmit` |
+| `make typecheck` | New Makefile target — runs `npm run typecheck` in `ui/` |
+| `make test` | Now runs `typecheck` as the first step before all test suites |
+| `.githooks/pre-commit` | Runs typecheck when `ui/` files are staged — blocks commit on type errors |
+| `make setup-hooks` | One-time setup: `git config core.hooksPath .githooks` |
+
+### Files
+
+| File | Change |
+|------|--------|
+| `ui/src/__tests__/profiler.test.tsx` | Added `isolation: null` to GameArea test props |
+| `ui/package.json` | Added `typecheck` script |
+| `Makefile` | Added `typecheck`, `setup-hooks` targets; wired typecheck into `test` |
+| `.githooks/pre-commit` | New: runs typecheck on staged `ui/` files |
+
+---
+
 ## Kata Container Support & Isolation Status
 
 **Date:** 2026-05-06

@@ -1,4 +1,4 @@
-.PHONY: deploy build clean test test-ui test-relay test-helm test-scripts dev dev-relay dev-ui help
+.PHONY: deploy build clean test typecheck test-ui test-relay test-helm test-scripts dev dev-relay dev-ui setup-hooks help
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-14s %s\n", $$1, $$2}'
@@ -45,7 +45,10 @@ dev-relay: ## Run relay only (tails .dev-data/claude.jsonl)
 dev-ui: ## Run Vite dev server only (expects relay on :3457)
 	cd ui && npm run dev
 
-test: test-ui test-relay test-helm test-scripts ## Run all tests
+test: typecheck test-ui test-relay test-helm test-scripts ## Run all tests
+
+typecheck: ## Run TypeScript type checking (catches errors Vite/Vitest skip)
+	cd ui && npm run typecheck
 
 test-ui: ## Run UI tests (Vitest)
 	cd ui && npm test
@@ -58,3 +61,6 @@ test-helm: ## Run Helm template tests
 
 test-scripts: ## Run script smoke tests
 	bash tests/scripts/config.test.sh
+
+setup-hooks: ## Configure git to use project hooks (run once after clone)
+	git config core.hooksPath .githooks

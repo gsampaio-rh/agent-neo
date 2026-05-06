@@ -241,6 +241,7 @@ describe('Profiler: GameArea', () => {
         actionText: 'Exploring filesystem...',
         escaped: false,
         eventCount: 25,
+        isolation: null,
       }),
     ));
 
@@ -258,6 +259,7 @@ describe('Profiler: GameArea', () => {
       actionText: '',
       escaped: false,
       eventCount: 10,
+      isolation: null,
     };
 
     const { rerender } = render(createElement(Profiler, { id: 'GameArea', onRender: col.onRender },

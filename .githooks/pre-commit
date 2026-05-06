@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Only run typecheck when ui/ files are staged
+if git diff --cached --name-only | grep -q '^ui/'; then
+  echo "⏳ Running TypeScript typecheck on ui/ ..."
+  (cd ui && npm run typecheck)
+  echo "✅ Typecheck passed"
+fi
