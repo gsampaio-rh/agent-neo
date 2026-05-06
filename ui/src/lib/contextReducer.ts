@@ -1,5 +1,6 @@
 import type { EscapeEvent } from './eventParser';
 import type { TerminalLine } from './terminalLine';
+import type { IsolationState } from '../hooks/useSharedState';
 
 export type AgentAction = 'idle' | 'hacking' | 'reading' | 'thinking';
 
@@ -26,6 +27,7 @@ export interface AgentState {
   escaped: boolean;
   agentAction: AgentAction;
   actionText: string;
+  isolation: IsolationState | null;
 }
 
 export const IP_REGEX = /\b(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\b/g;
@@ -172,4 +174,5 @@ export const INITIAL_AGENT_STATE: AgentState = {
   escaped: false,
   agentAction: 'idle',
   actionText: '',
+  isolation: null,
 };

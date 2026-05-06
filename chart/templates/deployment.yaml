@@ -20,6 +20,13 @@ spec:
         app.kubernetes.io/part-of: the-red-matrix
     spec:
       serviceAccountName: {{ include "neo.fullname" . }}
+      {{- if .Values.runtime.kata.enabled }}
+      runtimeClassName: kata
+      {{- end }}
+      {{- with .Values.runtime.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       volumes:
         - name: claude-workspace
           emptyDir: {}

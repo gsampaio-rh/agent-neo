@@ -4,6 +4,83 @@
 
 ---
 
+## Kata Container Support & Isolation Status
+
+**Date:** 2026-05-06
+**Status:** Done
+
+Added Kata microVM support via Helm values and a full-stack isolation status feature: agent-side checks capture real evidence of container breakout capabilities, the relay exposes results, and the Box tab displays per-check BLOCKED/EXPOSED status with detail text. Participants can see at a glance whether the container is running on runc (exposed) or Kata (protected).
+
+**Spec:** [Kata Requirements](specs/agent-neo-kata-requirements.md)
+
+### Helm: Kata Runtime
+
+Added `runtime.kata.enabled` (default: `false`) and `runtime.nodeSelector` to `chart/values.yaml`. When enabled, the deployment renders `runtimeClassName: kata` and optional `nodeSelector` in the pod spec. Fully reversible — defaults produce no Kata-related fields.
+
+| File | Change |
+|------|--------|
+| `chart/values.yaml` | `runtime.kata.enabled`, `runtime.nodeSelector`, Kata resource overhead comments |
+| `chart/templates/deployment.yaml` | Conditional `runtimeClassName` and `nodeSelector` |
+| `tests/helm/template.test.sh` | +30 assertions: Kata on/off, nodeSelector, runtimeClassName, no-regression defaults |
+
+### Agent: Isolation Checks
+
+New `build/isolation-check.sh` runs three checks at container startup, each trying an operation that succeeds on runc but fails on Kata. Results are written atomically to `isolation-state.json` in the shared logs volume. Each check captures a `detail` field with real evidence (e.g., the host filesystem listing visible through `/proc/1/root/`).
+
+| Check | runc (exposed) | Kata (blocked) |
+|-------|---------------|----------------|
+| Namespace escape (`unshare`) | "unshare succeeded — PID/mount namespaces can be created, container escape possible" | "unshare blocked by guest kernel boundary" |
+| Host filesystem (`/proc/1/root/`) | "host root visible: bin, dev, etc, home, lib, proc, root, usr" | "host filesystem isolated by Kata guest kernel" |
+| Kernel modules (`modprobe`) | "modprobe succeeded — kernel modules loadable from container" | "modprobe blocked by hypervisor boundary" |
+
+| File | Change |
+|------|--------|
+| `build/isolation-check.sh` | New: standalone check script with evidence capture |
+| `build/entrypoint.sh` | Calls isolation-check.sh on startup |
+| `build/Dockerfile` | Copies + chmods the new script |
+| `tests/build/isolation-check.test.sh` | New: 4 tests — JSON schema, detail field, runtime consistency, atomic write |
+
+### Relay: State Integration
+
+`StateManager` polls `isolation-state.json` alongside `net-state.json` and includes `isolation` in the `getState()` response. Graceful degradation when the file is missing or corrupt.
+
+| File | Change |
+|------|--------|
+| `ui/relay/state/manager.js` | `_pollIsolationState()`, `isolation` in constructor + `getState()` |
+| `ui/relay/__tests__/state.test.js` | +7 tests: absent/corrupt file, kata/runc parsing, reset behavior, API response, dynamic polling |
+
+### UI: Box Tab Isolation Display
+
+The `IsolationStatus` component renders in the Box sidebar with:
+- Runtime badge (red `runc` / green `kata`) next to the heading
+- Per-check row: colored dot + label + BLOCKED/EXPOSED status
+- Evidence detail line underneath each check (mono font, line-clamped to 2 lines)
+
+Compact styling matches the existing sidebar design system (mono font for content, 7px pixel font for headings, consistent spacing).
+
+| File | Change |
+|------|--------|
+| `ui/src/hooks/useSharedState.tsx` | `IsolationCheck`, `IsolationState` types, dev override with detail |
+| `ui/src/lib/contextReducer.ts` | `isolation` in `AgentState` |
+| `ui/src/hooks/useGameState.ts` | Forwards isolation from shared state |
+| `ui/src/App.tsx` | Passes `isolation` prop to GameArea |
+| `ui/src/components/GameArea.tsx` | `IsolationStatus` component with labels, status, detail |
+| `ui/src/components/SettingsDrawer.tsx` | Isolation runtime toggle in dev tools (server/runc/kata) |
+| `ui/src/styles/neo.css` | Isolation section: mono font labels, compact spacing, line-clamped detail, runtime badge |
+| `ui/src/components/__tests__/GameArea.test.tsx` | +7 tests: null/kata/runc, labels, BLOCKED/EXPOSED, detail text |
+| `ui/src/hooks/__tests__/useSharedState.test.tsx` | Updated initial state assertion |
+
+### Dev Mode
+
+- `Makefile` seeds `isolation-state.json` (runc defaults with detail evidence) in `.dev-data/`
+- Settings drawer toggle simulates server/runc/kata with full detail text
+
+### Tests
+
+733 total tests pass (460 UI + 192 relay + 66 Helm + 11 scripts + 4 build).
+
+---
+
 ## Map Layout & Node Positioning
 
 **Date:** 2026-05-04

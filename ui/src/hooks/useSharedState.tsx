@@ -3,15 +3,29 @@ import type { ReactNode } from 'react';
 
 type AttackPhase = 'normal' | 'compromised' | 'exploiting';
 
+export interface IsolationCheck {
+  name: string;
+  label: string;
+  pass: boolean;
+  detail?: string;
+}
+
+export interface IsolationState {
+  runtime: string;
+  checks: IsolationCheck[];
+}
+
 export interface SharedServerState {
   escaped: boolean;
   eventCount: number;
   attackPhase: AttackPhase;
+  isolation: IsolationState | null;
 }
 
 export interface DevOverride {
   attackPhase?: AttackPhase;
   escaped?: boolean;
+  isolationRuntime?: 'runc' | 'kata';
 }
 
 type DevOverrideUpdater = DevOverride | null | ((prev: DevOverride | null) => DevOverride | null);
@@ -26,6 +40,7 @@ const INITIAL_STATE: SharedServerState = {
   escaped: false,
   eventCount: 0,
   attackPhase: 'normal',
+  isolation: null,
 };
 
 const SharedStateContext = createContext<SharedStateContextValue>({
@@ -54,6 +69,7 @@ export function SharedStateProvider({ children }: { children: ReactNode }): Reac
           escaped: data.escaped ?? prev.escaped,
           eventCount: data.eventCount ?? prev.eventCount,
           attackPhase: data.attackPhase ?? prev.attackPhase,
+          isolation: data.isolation ?? prev.isolation,
         }));
       } catch {
         // network error — keep current state
@@ -77,6 +93,22 @@ export function SharedStateProvider({ children }: { children: ReactNode }): Reac
         ...serverState,
         ...(devOverride.attackPhase !== undefined && { attackPhase: devOverride.attackPhase }),
         ...(devOverride.escaped !== undefined && { escaped: devOverride.escaped }),
+        ...(devOverride.isolationRuntime !== undefined && {
+          isolation: {
+            runtime: devOverride.isolationRuntime,
+            checks: devOverride.isolationRuntime === 'kata'
+              ? [
+                  { name: 'namespace_escape', label: 'Namespace escape', pass: true, detail: 'unshare blocked by guest kernel boundary' },
+                  { name: 'host_pid', label: 'Host filesystem', pass: true, detail: 'host filesystem isolated by Kata guest kernel' },
+                  { name: 'kernel_module', label: 'Kernel modules', pass: true, detail: 'modprobe blocked by hypervisor boundary' },
+                ]
+              : [
+                  { name: 'namespace_escape', label: 'Namespace escape', pass: false, detail: 'unshare succeeded \u2014 PID/mount namespaces can be created, container escape possible' },
+                  { name: 'host_pid', label: 'Host filesystem', pass: false, detail: 'host root visible: bin, dev, etc, home, lib, proc, root, usr' },
+                  { name: 'kernel_module', label: 'Kernel modules', pass: false, detail: 'modprobe succeeded \u2014 kernel modules loadable from container' },
+                ],
+          },
+        }),
       }
     : serverState;
 

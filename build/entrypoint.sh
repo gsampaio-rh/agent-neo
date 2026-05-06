@@ -37,6 +37,8 @@ fi
 SYSLOG="$LOG_DIR/system.log"
 touch "$SYSLOG"
 
+/usr/local/lib/neo/isolation-check.sh 2>&1 | tee -a "$SYSLOG"
+
 if command -v ttyd &>/dev/null; then
   TTYD_ARGS=(-p 7681 --writable)
   if [[ -n "${TTYD_CREDENTIAL:-}" ]]; then

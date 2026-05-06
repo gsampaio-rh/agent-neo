@@ -23,6 +23,7 @@ dev: ## Run relay + Vite dev server locally (no cluster needed)
 	@test -f $(DEV_DATA_DIR)/claude-workspace/CLAUDE.md || printf '# CLAUDE.md\n\nMain config for the Claude agent.\n' > $(DEV_DATA_DIR)/claude-workspace/CLAUDE.md
 	@test -f $(DEV_DATA_DIR)/claude-workspace/settings.json || printf '{\n  "model": "claude-sonnet-4-20250514",\n  "maxTokens": 8192\n}\n' > $(DEV_DATA_DIR)/claude-workspace/settings.json
 	@test -f $(DEV_DATA_DIR)/claude-workspace/tasks/neo-dev/1.json || scripts/seed-dev-tasks.sh $(DEV_DATA_DIR)/claude-workspace
+	@test -f $(DEV_DATA_DIR)/isolation-state.json || printf '{\n  "timestamp": "2026-01-01T00:00:00Z",\n  "runtime": "runc",\n  "checks": [\n    { "name": "namespace_escape", "label": "Namespace escape", "pass": false, "detail": "unshare succeeded — PID/mount namespaces can be created, container escape possible" },\n    { "name": "host_pid", "label": "Host filesystem", "pass": false, "detail": "host root visible: bin, dev, etc, home, lib, proc, root, usr" },\n    { "name": "kernel_module", "label": "Kernel modules", "pass": false, "detail": "modprobe succeeded — kernel modules loadable from container" }\n  ]\n}\n' > $(DEV_DATA_DIR)/isolation-state.json
 	@echo ""
 	@echo "  Neo local dev"
 	@echo "  ─────────────────────────────────────────"

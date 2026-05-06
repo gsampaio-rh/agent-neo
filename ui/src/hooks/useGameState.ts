@@ -54,5 +54,12 @@ export function useGameState(): AgentState {
     }
   }, [sharedState.escaped, sharedState.eventCount]);
 
+  useEffect(() => {
+    setState((prev) => {
+      if (prev.isolation === sharedState.isolation) return prev;
+      return { ...prev, isolation: sharedState.isolation };
+    });
+  }, [sharedState.isolation]);
+
   return state;
 }

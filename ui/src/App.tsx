@@ -81,6 +81,7 @@ function TabContent({ activeTab, liveState, chatState, chatActions, attackPhase,
               actionText={liveState.actionText}
               escaped={liveState.escaped}
               eventCount={liveState.eventCount}
+              isolation={liveState.isolation}
             />
           )}
           <LiveTerminal

@@ -32,13 +32,14 @@ COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY claude-logged /usr/local/bin/claude-logged
 COPY prompt-watcher.sh /usr/local/lib/neo/prompt-watcher.sh
 COPY net-monitor.sh /usr/local/lib/neo/net-monitor.sh
+COPY isolation-check.sh /usr/local/lib/neo/isolation-check.sh
 
 WORKDIR /opt/app-root/src
 
 USER 0
 # Strip all network tools after build — the agent starts with nothing
 RUN rm -f /usr/bin/curl /usr/bin/wget /usr/bin/nc /usr/bin/ncat 2>/dev/null || true
-RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/claude-logged /usr/local/lib/neo/prompt-watcher.sh /usr/local/lib/neo/net-monitor.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/claude-logged /usr/local/lib/neo/prompt-watcher.sh /usr/local/lib/neo/net-monitor.sh /usr/local/lib/neo/isolation-check.sh
 USER 1001
 
 CMD ["/usr/local/bin/entrypoint.sh"]

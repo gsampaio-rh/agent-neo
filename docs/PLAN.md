@@ -2,7 +2,7 @@
 
 **Status:** Sprint 4 (in progress)
 **Date:** 2026-05-02
-**Last updated:** 2026-05-04
+**Last updated:** 2026-05-06
 **Related:** [Architecture](ARCHITECTURE.md) | [Changelog](CHANGELOG.md) | [Future Explorations](FUTURE_EXPLORATIONS.md)
 
 Conventions: `[ ]` = pending | `[!]` = blocked | **Gate** = required criterion
@@ -108,6 +108,12 @@ Tune compaction and context window for long-running workshop sessions:
 
 ---
 
+## ~~Sprint 4c — Kata Container Support~~ ✓
+
+Done — see [Changelog](CHANGELOG.md#kata-container-support--isolation-status).
+
+---
+
 ## Sprint 5 — Config & File Management
 
 Complete the file management UX: in-browser editing, upload/download, and structured editors for Claude Code config files.
@@ -186,22 +192,17 @@ Record and replay past agent sessions:
 
 ## Sprint 7 — Escape the Box (revisit)
 
-Revisit the "escape the box" challenge. The Map tab and the escape mechanic are **not necessarily coupled** — the map shows network topology (bind shell state), but the "escape" concept could be broader (data exfiltration, privilege escalation, etc.). Need to decide whether they remain tied together or become independent features.
+The Box tab already tracks container state and attack phases via `net-monitor.sh`. The escape mechanic works passively — no auto-prompt or UI trigger needed. Remaining work is documentation and verifying the Map tab end-to-end.
 
 ```
-Progress: [####......] 40%
+Progress: [######....] 60%
 ```
 
 ### Escape Activity Integration
 
-The challenge has no way to be triggered from the Neo UI. Agent-side code (`prompt.reset-attack`, `net-monitor.sh`, attack phase detection) exists, but the chart pieces for target-apps/attack are deployed separately.
-
-- [ ] Revisit the relationship between Map tab visualization and escape mechanic — decouple or redesign
-- [ ] Determine how to trigger the escape challenge from the UI (button? auto-prompt? separate deploy step?)
-- [ ] Review if `prompts/escape.txt` is still used and how it gets injected into the agent
+- [ ] Verify Map tab attack phase visualization works end-to-end with current `net-state.json` flow
 - [ ] Clarify if target-apps and attack charts still exist elsewhere or need to be recreated
-- [ ] Ensure the Map tab attack phase visualization still works end-to-end
-- [ ] Document the full facilitator workflow: deploy target → trigger challenge → observe → reset
+- [ ] Document the full facilitator workflow: deploy target → observe in Box/Map → reset
 
 ### ~~Dev Mode Toggles~~ ✓
 

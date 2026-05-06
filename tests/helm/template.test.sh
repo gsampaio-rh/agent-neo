@@ -215,6 +215,36 @@ assert_pass "agent ServiceMonitor targets otel-metrics port" grep -q 'otel-metri
 # Use specific name pattern to avoid matching agent-metrics Service
 assert_fail "no agent ServiceMonitor when metrics.enabled false" grep -q 'name: test-release-neo-agent$' "$TMPDIR_TEST/full.yaml"
 
+# --- Kata runtime tests ---
+
+# No runtimeClassName when runtime.kata.enabled is false (default)
+assert_fail "no runtimeClassName when kata disabled (default)" grep -q 'runtimeClassName' "$TMPDIR_TEST/full.yaml"
+
+# No nodeSelector from runtime block in default render
+assert_fail "no nodeSelector from runtime block by default" grep -q 'nodeSelector' "$TMPDIR_TEST/full.yaml"
+
+# runtimeClassName present when runtime.kata.enabled=true
+helm template test-release "$CHART_DIR" \
+  --set config.anthropicBaseUrl=http://test.example.com \
+  --set runtime.kata.enabled=true > "$TMPDIR_TEST/kata.yaml" 2>&1
+assert_pass "runtimeClassName: kata when kata enabled" grep -q 'runtimeClassName: kata' "$TMPDIR_TEST/kata.yaml"
+
+# nodeSelector present when runtime.nodeSelector is set
+helm template test-release "$CHART_DIR" \
+  --set config.anthropicBaseUrl=http://test.example.com \
+  --set runtime.kata.enabled=true \
+  --set 'runtime.nodeSelector.node\.kubernetes\.io/instance-type=m5.metal' > "$TMPDIR_TEST/kata-ns.yaml" 2>&1
+assert_pass "nodeSelector rendered when runtime.nodeSelector set" grep -q 'nodeSelector' "$TMPDIR_TEST/kata-ns.yaml"
+assert_pass "nodeSelector contains instance-type key" grep -q 'instance-type' "$TMPDIR_TEST/kata-ns.yaml"
+
+# No runtimeClassName when kata disabled but nodeSelector set
+helm template test-release "$CHART_DIR" \
+  --set config.anthropicBaseUrl=http://test.example.com \
+  --set runtime.kata.enabled=false \
+  --set 'runtime.nodeSelector.node\.kubernetes\.io/instance-type=m5.metal' > "$TMPDIR_TEST/kata-off-ns.yaml" 2>&1
+assert_fail "no runtimeClassName when kata disabled with nodeSelector" grep -q 'runtimeClassName' "$TMPDIR_TEST/kata-off-ns.yaml"
+assert_pass "nodeSelector still rendered when kata disabled but nodeSelector set" grep -q 'nodeSelector' "$TMPDIR_TEST/kata-off-ns.yaml"
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [[ $FAIL -eq 0 ]] || exit 1

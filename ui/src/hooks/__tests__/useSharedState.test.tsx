@@ -20,7 +20,7 @@ describe('useSharedState with SharedStateProvider', () => {
   it('returns initial state before first fetch', () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation(() => new Promise(() => {}));
     const { result } = renderHook(() => useSharedState(), { wrapper });
-    expect(result.current).toEqual({ escaped: false, eventCount: 0, attackPhase: 'normal' });
+    expect(result.current).toEqual({ escaped: false, eventCount: 0, attackPhase: 'normal', isolation: null });
   });
 
   it('polls server state on mount', async () => {

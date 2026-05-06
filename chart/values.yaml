@@ -76,6 +76,11 @@ resources:
     limits:
       cpu: "1"
       memory: 2Gi
+  # When runtime.kata.enabled=true, Kata adds ~250m CPU + 2Gi memory overhead
+  # for the guest OS. If the pod hits resource limits, increase limits accordingly.
+  # Example Kata-adjusted limits:
+  #   agent.limits.cpu: "2"
+  #   agent.limits.memory: 4Gi
   ui:
     requests:
       cpu: 50m
@@ -115,3 +120,8 @@ metrics:
   enabled: false
   interval: "30s"
   labels: {}
+
+runtime:
+  kata:
+    enabled: false
+  nodeSelector: {}

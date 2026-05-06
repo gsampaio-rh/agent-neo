@@ -1,4 +1,5 @@
 import type { AgentAction, AgentContext } from '../lib/contextReducer';
+import type { IsolationState } from '../hooks/useSharedState';
 import { ContextSidebar } from './ContextSidebar';
 import { truncatePath } from '../lib/constants';
 import { ParticleEmitter } from './game/ParticleEmitter';
@@ -9,6 +10,7 @@ interface GameAreaProps {
   actionText: string;
   escaped: boolean;
   eventCount: number;
+  isolation: IsolationState | null;
 }
 
 function degradationLevel(ctx: AgentContext, escaped: boolean): number {
@@ -59,7 +61,40 @@ function getRobotFacing(action: AgentAction, eventCount: number, escaped: boolea
   return eventCount % 3 !== 0;
 }
 
-export function GameArea({ context, agentAction, actionText, escaped, eventCount }: GameAreaProps) {
+function IsolationStatus({ isolation }: { isolation: IsolationState }) {
+  const isKata = isolation.runtime === 'kata';
+
+  return (
+    <div className={`sidebar__section sidebar__section--isolation ${isKata ? 'sidebar__section--secured' : ''}`}>
+      <h3 className="sidebar__heading">
+        isolation
+        <span className={`sidebar__isolation-badge sidebar__isolation-badge--${isKata ? 'kata' : 'runc'}`}>
+          {isolation.runtime}
+        </span>
+      </h3>
+      <ul className="sidebar__list sidebar__isolation-list">
+        {isolation.checks.map((check) => (
+          <li key={check.name} className="sidebar__isolation-check">
+            <div className="sidebar__isolation-header">
+              <span className={`sidebar__isolation-dot sidebar__isolation-dot--${check.pass ? 'pass' : 'fail'}`} />
+              <span className="sidebar__isolation-label">{check.label}</span>
+              <span className={`sidebar__isolation-status sidebar__isolation-status--${check.pass ? 'pass' : 'fail'}`}>
+                {check.pass ? 'BLOCKED' : 'EXPOSED'}
+              </span>
+            </div>
+            {check.detail && (
+              <div className={`sidebar__isolation-detail sidebar__isolation-detail--${check.pass ? 'pass' : 'fail'}`}>
+                {check.detail}
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+export function GameArea({ context, agentAction, actionText, escaped, eventCount, isolation }: GameAreaProps) {
   const wallLevel = degradationLevel(context, escaped);
   const recentDirs = context.dirsVisited.slice(-6);
   const pos = getRobotPosition(agentAction, eventCount, escaped);
@@ -71,19 +106,22 @@ export function GameArea({ context, agentAction, actionText, escaped, eventCount
         context={context}
         maxFiles={8}
         footer={
-          <div className={`sidebar__section sidebar__section--status ${escaped ? 'sidebar__section--breached' : ''}`}>
-            <h3 className="sidebar__heading">outbound</h3>
-            {escaped ? (
-              <>
-                <span className="sidebar__status sidebar__status--connected">CONNECTED</span>
-                {context.outboundTarget && (
-                  <span className="sidebar__target">{context.outboundTarget}</span>
-                )}
-              </>
-            ) : (
-              <span className="sidebar__status sidebar__status--blocked">BLOCKED</span>
-            )}
-          </div>
+          <>
+            {isolation && <IsolationStatus isolation={isolation} />}
+            <div className={`sidebar__section sidebar__section--status ${escaped ? 'sidebar__section--breached' : ''}`}>
+              <h3 className="sidebar__heading">outbound</h3>
+              {escaped ? (
+                <>
+                  <span className="sidebar__status sidebar__status--connected">CONNECTED</span>
+                  {context.outboundTarget && (
+                    <span className="sidebar__target">{context.outboundTarget}</span>
+                  )}
+                </>
+              ) : (
+                <span className="sidebar__status sidebar__status--blocked">BLOCKED</span>
+              )}
+            </div>
+          </>
         }
       >
         <div className="sidebar__section">

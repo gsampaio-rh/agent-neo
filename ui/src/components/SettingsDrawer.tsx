@@ -21,6 +21,7 @@ function extractSkills(tree: FileNode[]): string[] {
 }
 
 const ATTACK_PHASES: AttackPhase[] = ['normal', 'compromised', 'exploiting'];
+const ISOLATION_OPTIONS = ['server', 'runc', 'kata'] as const;
 
 function DevToolsSection() {
   const { devOverride, setDevOverride } = useDevOverride();
@@ -33,10 +34,23 @@ function DevToolsSection() {
     setDevOverride((prev) => ({ ...prev, escaped: !(prev?.escaped ?? false) }));
   };
 
+  const setIsolation = (value: typeof ISOLATION_OPTIONS[number]) => {
+    if (value === 'server') {
+      setDevOverride((prev) => {
+        if (!prev) return null;
+        const { isolationRuntime: _, ...rest } = prev;
+        return Object.keys(rest).length > 0 ? rest : null;
+      });
+    } else {
+      setDevOverride((prev) => ({ ...prev, isolationRuntime: value }));
+    }
+  };
+
   const clearAll = () => setDevOverride(null);
 
   const activePhase = devOverride?.attackPhase;
   const escaped = devOverride?.escaped ?? false;
+  const activeIsolation = devOverride?.isolationRuntime ?? 'server';
   const hasOverride = devOverride !== null;
 
   return (
@@ -67,6 +81,21 @@ function DevToolsSection() {
         >
           {escaped ? 'ON' : 'OFF'}
         </button>
+      </div>
+
+      <div className="settings-drawer__field">
+        <label className="settings-drawer__label">Isolation Runtime</label>
+        <div className="settings-drawer__dev-phases">
+          {ISOLATION_OPTIONS.map((opt) => (
+            <button
+              key={opt}
+              className={`settings-drawer__dev-phase${activeIsolation === opt ? ' settings-drawer__dev-phase--active' : ''}`}
+              onClick={() => setIsolation(opt)}
+            >
+              {opt}
+            </button>
+          ))}
+        </div>
       </div>
 
       {hasOverride && (

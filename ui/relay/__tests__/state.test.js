@@ -367,3 +367,111 @@ describe('StateManager attackPhase', () => {
     assert.equal(mgr.getState().outboundTarget, null);
   });
 });
+
+describe('StateManager isolation', () => {
+  let dir, mgr;
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'state-isolation-'));
+  });
+  afterEach(() => {
+    if (mgr) mgr.destroy();
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  const KATA_STATE = {
+    timestamp: '2026-05-06T14:30:00Z',
+    runtime: 'kata',
+    checks: [
+      { name: 'namespace_escape', label: 'Kernel namespace escape (unshare)', pass: true },
+      { name: 'host_pid', label: 'Host PID namespace (/proc/1/root)', pass: true },
+      { name: 'kernel_module', label: 'Kernel module load (modprobe)', pass: true },
+    ],
+  };
+
+  const RUNC_STATE = {
+    timestamp: '2026-05-06T14:30:00Z',
+    runtime: 'runc',
+    checks: [
+      { name: 'namespace_escape', label: 'Kernel namespace escape (unshare)', pass: false },
+      { name: 'host_pid', label: 'Host PID namespace (/proc/1/root)', pass: false },
+      { name: 'kernel_module', label: 'Kernel module load (modprobe)', pass: false },
+    ],
+  };
+
+  it('returns isolation: null when isolation-state.json is absent', () => {
+    mgr = new StateManager(dir);
+    assert.equal(mgr.getState().isolation, null);
+  });
+
+  it('reads isolation-state.json with kata runtime', () => {
+    writeFileSync(join(dir, 'isolation-state.json'), JSON.stringify(KATA_STATE));
+    mgr = new StateManager(dir);
+    const iso = mgr.getState().isolation;
+    assert.equal(iso.runtime, 'kata');
+    assert.equal(iso.checks.length, 3);
+    assert.ok(iso.checks.every(c => c.pass === true));
+  });
+
+  it('reads isolation-state.json with runc runtime', () => {
+    writeFileSync(join(dir, 'isolation-state.json'), JSON.stringify(RUNC_STATE));
+    mgr = new StateManager(dir);
+    const iso = mgr.getState().isolation;
+    assert.equal(iso.runtime, 'runc');
+    assert.ok(iso.checks.every(c => c.pass === false));
+  });
+
+  it('handles corrupt isolation-state.json gracefully', () => {
+    writeFileSync(join(dir, 'isolation-state.json'), 'NOT JSON');
+    mgr = new StateManager(dir);
+    assert.equal(mgr.getState().isolation, null);
+  });
+
+  it('reset does NOT clear isolation state', () => {
+    writeFileSync(join(dir, 'isolation-state.json'), JSON.stringify(KATA_STATE));
+    mgr = new StateManager(dir);
+    assert.equal(mgr.getState().isolation.runtime, 'kata');
+    mgr.reset();
+    assert.equal(mgr.getState().isolation.runtime, 'kata');
+  });
+
+  it('isolation field included in getState response', () => {
+    mgr = new StateManager(dir);
+    const state = mgr.getState();
+    assert.ok('isolation' in state);
+  });
+
+  it('picks up isolation-state.json on poll after startup', () => {
+    mgr = new StateManager(dir);
+    assert.equal(mgr.getState().isolation, null);
+
+    writeFileSync(join(dir, 'isolation-state.json'), JSON.stringify(KATA_STATE));
+    mgr._pollIsolationState();
+    assert.equal(mgr.getState().isolation.runtime, 'kata');
+  });
+});
+
+describe('handleGetState includes isolation', () => {
+  let dir, mgr;
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'state-api-iso-'));
+    writeFileSync(join(dir, 'isolation-state.json'), JSON.stringify({
+      timestamp: '2026-05-06T14:30:00Z',
+      runtime: 'runc',
+      checks: [
+        { name: 'namespace_escape', label: 'Kernel namespace escape (unshare)', pass: false },
+        { name: 'host_pid', label: 'Host PID namespace (/proc/1/root)', pass: false },
+        { name: 'kernel_module', label: 'Kernel module load (modprobe)', pass: false },
+      ],
+    }));
+    mgr = new StateManager(dir);
+  });
+  afterEach(() => { mgr.destroy(); rmSync(dir, { recursive: true, force: true }); });
+
+  it('API response includes isolation field', () => {
+    const res = fakeRes();
+    handleGetState({}, res, { stateManager: mgr });
+    assert.equal(res.status, 200);
+    assert.equal(res.body.isolation.runtime, 'runc');
+    assert.equal(res.body.isolation.checks.length, 3);
+  });
+});

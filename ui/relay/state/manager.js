@@ -32,13 +32,19 @@ export class StateManager {
     this.dataDir = dataDir;
     this.filePath = join(dataDir, 'agent-state.json');
     this.netStatePath = join(dataDir, 'net-state.json');
+    this.isolationStatePath = join(dataDir, 'isolation-state.json');
     this.state = this._load();
     this.attackPhase = 'normal';
+    this.isolationState = null;
     this._persistTimer = null;
     this._persistDirty = false;
 
     this._pollNetState();
-    this._netPollTimer = setInterval(() => this._pollNetState(), NET_STATE_POLL_MS);
+    this._pollIsolationState();
+    this._netPollTimer = setInterval(() => {
+      this._pollNetState();
+      this._pollIsolationState();
+    }, NET_STATE_POLL_MS);
   }
 
   _load() {
@@ -83,6 +89,14 @@ export class StateManager {
     } catch { /* keep current phase on error */ }
   }
 
+  _pollIsolationState() {
+    try {
+      if (!existsSync(this.isolationStatePath)) return;
+      const raw = readFileSync(this.isolationStatePath, 'utf8');
+      this.isolationState = JSON.parse(raw);
+    } catch { /* keep current isolation on error */ }
+  }
+
   _debouncedPersist() {
     this._persistDirty = true;
     if (this._persistTimer) return;
@@ -102,7 +116,7 @@ export class StateManager {
   }
 
   getState() {
-    return { ...this.state, attackPhase: this.attackPhase };
+    return { ...this.state, attackPhase: this.attackPhase, isolation: this.isolationState };
   }
 
   reset() {

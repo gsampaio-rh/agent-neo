@@ -11,7 +11,7 @@
 
 The agent-neo Helm chart must support running the Neo pod inside a Kata microVM by setting `runtimeClassName: kata` on the pod spec. This is activated via a Helm value (`runtime.kata.enabled`) and must be fully reversible.
 
-Workshop flow: Neo starts on runc (default). During Chapter 1, participants run `helm upgrade --set runtime.kata.enabled=true` to move Neo into a Kata microVM, then run an escape-test script to verify isolation.
+Workshop flow: Neo starts on runc (default). During Chapter 1, participants run `helm upgrade --set runtime.kata.enabled=true` to move Neo into a Kata microVM. Isolation status is visible in the Box tab UI — no `oc exec` required.
 
 ## Helm Values Contract
 
@@ -63,88 +63,35 @@ Current deployment.yaml (line 21–22) has:
 
 The change inserts `runtimeClassName` and `nodeSelector` between `serviceAccountName` and `volumes`.
 
-### Escape-Test Script
+### Isolation Status in Box Tab
 
-The escape-test script must be available at `/opt/escape-test.sh` inside the `claude-code` container when Kata is enabled. Two delivery options — choose whichever fits better in the agent-neo repo:
+Instead of a separate script that participants run via `oc exec`, isolation checks run automatically on container startup and results are displayed in the Box tab UI.
 
-**Option A: ConfigMap (recommended)**
+**Agent side:** On startup, the agent container runs three isolation checks and writes results to `isolation-state.json` in the shared volume (`claude-logs`):
 
-Create `chart/templates/configmap-escape-test.yaml`:
-
-```yaml
-{{- if .Values.runtime.kata.enabled }}
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: {{ include "neo.fullname" . }}-escape-test
-  labels:
-    {{- include "neo.labels" . | nindent 4 }}
-data:
-  escape-test.sh: |
-    #!/bin/bash
-    echo "=== Kata Isolation Test ==="
-    echo ""
-
-    echo -n "[TEST 1] Kernel namespace escape (unshare --mount --pid): "
-    if unshare --mount --pid -- true 2>/dev/null; then
-      echo "FAIL — escape possible (runc)"
-    else
-      echo "PASS — blocked by guest kernel boundary"
-    fi
-
-    echo -n "[TEST 2] Host PID namespace (/proc/1/root): "
-    if ls /proc/1/root/ >/dev/null 2>&1; then
-      echo "FAIL — host filesystem visible (runc)"
-    else
-      echo "PASS — isolated filesystem (Kata guest kernel)"
-    fi
-
-    echo -n "[TEST 3] Kernel module load (modprobe): "
-    if modprobe dummy 2>/dev/null; then
-      echo "FAIL — kernel modules loadable (runc)"
-    else
-      echo "PASS — blocked by hypervisor boundary"
-    fi
-
-    echo ""
-    echo "=== End ==="
-{{- end }}
+```json
+{
+  "timestamp": "2026-05-06T14:30:00Z",
+  "runtime": "kata",
+  "checks": [
+    { "name": "namespace_escape", "label": "Kernel namespace escape (unshare)", "pass": true },
+    { "name": "host_pid", "label": "Host PID namespace (/proc/1/root)", "pass": true },
+    { "name": "kernel_module", "label": "Kernel module load (modprobe)", "pass": true }
+  ]
+}
 ```
 
-Add conditional volume and volumeMount in `deployment.yaml`:
+The checks are:
 
-Volume (add to `spec.template.spec.volumes`):
+1. **Namespace escape:** `unshare --mount --pid -- true` — succeeds on runc, blocked on Kata
+2. **Host PID namespace:** `ls /proc/1/root/` — visible on runc, isolated on Kata
+3. **Kernel module load:** `modprobe dummy` — loadable on runc, blocked on Kata
 
-```yaml
-      {{- if .Values.runtime.kata.enabled }}
-        - name: escape-test
-          configMap:
-            name: {{ include "neo.fullname" . }}-escape-test
-            defaultMode: 0755
-      {{- end }}
-```
+When all checks pass → `"runtime": "kata"`. When any check fails → `"runtime": "runc"`.
 
-VolumeMount (add to the `claude-code` container's `volumeMounts`):
+**Relay side:** The relay reads `isolation-state.json` from the shared volume and exposes it via SSE/API (same pattern as `net-state.json`).
 
-```yaml
-          {{- if .Values.runtime.kata.enabled }}
-            - name: escape-test
-              mountPath: /opt/escape-test.sh
-              subPath: escape-test.sh
-              readOnly: true
-          {{- end }}
-```
-
-**Option B: Baked into image**
-
-Add the script to `build/escape-test.sh` and copy it in the Dockerfile:
-
-```dockerfile
-COPY escape-test.sh /opt/escape-test.sh
-RUN chmod +x /opt/escape-test.sh
-```
-
-This is simpler (no ConfigMap, no volume) but requires an image rebuild to change the script.
+**UI side:** The Box tab displays isolation status — PASS/FAIL per check with visual indicators (e.g., green/red badges). Participants see the difference immediately after `helm upgrade`.
 
 ### Resource Overhead
 
@@ -174,15 +121,13 @@ Setting `runtime.kata.enabled=false` (or omitting it) must:
 
 1. Remove `runtimeClassName: kata` from the pod spec
 2. Remove `nodeSelector` from the `runtime` block (other nodeSelectors unaffected)
-3. Remove the escape-test ConfigMap (if using Option A)
-4. Remove the escape-test volume and volumeMount
-5. Leave all other pod spec fields unchanged
+3. Leave all other pod spec fields unchanged
 
-The pod restarts on runc with the standard container runtime. No manual cleanup required.
+The pod restarts on runc with the standard container runtime. The isolation checks re-run on startup and `isolation-state.json` updates automatically — the Box tab reflects the new runtime. No manual cleanup required.
 
 ## Verification Criteria
 
-### With `runtime.kata.enabled=true`
+### Helm Template — with `runtime.kata.enabled=true`
 
 ```bash
 helm template neo chart/ --set runtime.kata.enabled=true \
@@ -193,12 +138,9 @@ Must produce:
 
 - [ ] Deployment has `runtimeClassName: kata` in pod spec
 - [ ] Deployment has `nodeSelector` with `node.kubernetes.io/instance-type: m5.metal`
-- [ ] ConfigMap `neo-escape-test` exists (if using Option A)
-- [ ] Volume `escape-test` in pod spec references the ConfigMap
-- [ ] VolumeMount at `/opt/escape-test.sh` on `claude-code` container
 - [ ] All existing fields (probes, env, securityContext, etc.) are unchanged
 
-### With defaults (runtime.kata.enabled=false)
+### Helm Template — with defaults (runtime.kata.enabled=false)
 
 ```bash
 helm template neo chart/
@@ -208,50 +150,29 @@ Must produce:
 
 - [ ] No `runtimeClassName` field in pod spec
 - [ ] No `nodeSelector` from `runtime` block
-- [ ] No `neo-escape-test` ConfigMap
-- [ ] No `escape-test` volume or volumeMount
 - [ ] Output is identical to current chart output (no regressions)
 
-## Expected Escape-Test Output
+### Isolation Status — runtime behavior
 
-### In Kata (after `helm upgrade --set runtime.kata.enabled=true`)
-
-```
-=== Kata Isolation Test ===
-
-[TEST 1] Kernel namespace escape (unshare --mount --pid): PASS — blocked by guest kernel boundary
-[TEST 2] Host PID namespace (/proc/1/root): PASS — isolated filesystem (Kata guest kernel)
-[TEST 3] Kernel module load (modprobe): PASS — blocked by hypervisor boundary
-
-=== End ===
-```
-
-### In runc (before Kata, or after rollback)
-
-```
-=== Kata Isolation Test ===
-
-[TEST 1] Kernel namespace escape (unshare --mount --pid): FAIL — escape possible (runc)
-[TEST 2] Host PID namespace (/proc/1/root): FAIL — host filesystem visible (runc)
-[TEST 3] Kernel module load (modprobe): FAIL — kernel modules loadable (runc)
-
-=== End ===
-```
+- [ ] On Kata: `isolation-state.json` shows `"runtime": "kata"`, all checks pass
+- [ ] On runc: `isolation-state.json` shows `"runtime": "runc"`, all checks fail
+- [ ] Box tab UI renders PASS/FAIL per check
+- [ ] After rollback (kata → runc), pod restarts and `isolation-state.json` updates automatically
 
 ## Participant Workflow
 
 ```bash
-# 1. Upgrade Neo to Kata
+# 1. Check Box tab — see runc isolation status (all checks FAIL)
+
+# 2. Upgrade Neo to Kata
 helm upgrade neo ./chart --set runtime.kata.enabled=true -n $TEAM_NS
 
-# 2. Verify runtimeClassName
-oc describe pod -l app.kubernetes.io/name=neo -n $TEAM_NS | grep runtimeClassName
-
-# 3. Run escape test
-oc exec -it deploy/neo -c claude-code -n $TEAM_NS -- /opt/escape-test.sh
+# 3. Wait for pod restart, check Box tab — see kata isolation status (all checks PASS)
 
 # 4. Rollback to runc
 helm upgrade neo ./chart --set runtime.kata.enabled=false -n $TEAM_NS
+
+# 5. Check Box tab — back to runc (all checks FAIL)
 ```
 
 ## Reference Implementation
