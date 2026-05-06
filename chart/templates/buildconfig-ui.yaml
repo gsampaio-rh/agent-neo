@@ -11,10 +11,20 @@ spec:
       kind: ImageStreamTag
       name: {{ .Values.image.ui.name }}:{{ .Values.image.ui.tag }}
   source:
+    {{- if eq .Values.build.source.type "Git" }}
+    type: Git
+    git:
+      uri: {{ .Values.build.source.git.uri }}
+      ref: {{ .Values.build.source.git.ref }}
+    contextDir: ui
+    {{- else }}
     type: Binary
+    {{- end }}
   strategy:
     type: Docker
     dockerStrategy:
       dockerfilePath: Dockerfile
+  triggers:
+    - type: ConfigChange
   resources:
     {{- toYaml .Values.build.ui.resources | nindent 4 }}

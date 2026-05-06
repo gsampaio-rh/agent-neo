@@ -85,6 +85,11 @@ resources:
       memory: 256Mi
 
 build:
+  source:
+    type: Git               # Git | Binary
+    git:
+      uri: "https://github.com/gsampaio-rh/agent-neo.git"
+      ref: "main"
   agent:
     resources:
       requests:

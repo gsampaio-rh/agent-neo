@@ -12,6 +12,7 @@ echo ""
 echo "  Release:   $RELEASE_NAME"
 echo "  Namespace: $NAMESPACE"
 echo "  Model:     $MODEL_NAME"
+echo "  Build:     $BUILD_MODE"
 echo ""
 
 validate_config
@@ -23,6 +24,9 @@ HELM_ARGS=(
   --set "config.anthropicBaseUrl=$ANTHROPIC_BASE_URL"
   --set "config.modelName=$MODEL_NAME"
 )
+if [[ "$BUILD_MODE" == "binary" ]]; then
+  HELM_ARGS+=(--set "build.source.type=Binary")
+fi
 if [[ -n "$NEO_AUTH_USER" ]]; then
   HELM_ARGS+=(--set "auth.username=$NEO_AUTH_USER" --set "auth.password=$NEO_AUTH_PASS")
 elif [[ -n "$TTYD_CREDENTIAL" ]]; then
@@ -31,18 +35,30 @@ fi
 helm "${HELM_ARGS[@]}"
 echo ""
 
-echo "── Building Agent image ($AGENT_BC_NAME) ──"
-echo "  Uploading source from $BUILD_DIR ..."
-oc start-build "$AGENT_BC_NAME" \
-  --from-dir="$BUILD_DIR" \
-  -n "$NAMESPACE" --wait --follow
+echo "── Building Agent image ($AGENT_BC_NAME) [mode: $BUILD_MODE] ──"
+if [[ "$BUILD_MODE" == "binary" ]]; then
+  echo "  Uploading source from $BUILD_DIR ..."
+  oc start-build "$AGENT_BC_NAME" \
+    --from-dir="$BUILD_DIR" \
+    -n "$NAMESPACE" --wait --follow
+else
+  echo "  Triggering Git source build ..."
+  oc start-build "$AGENT_BC_NAME" \
+    -n "$NAMESPACE" --wait --follow
+fi
 echo ""
 
-echo "── Building UI image ($UI_BC_NAME) ──"
-echo "  Uploading source from $UI_SRC_DIR ..."
-oc start-build "$UI_BC_NAME" \
-  --from-dir="$UI_SRC_DIR" \
-  -n "$NAMESPACE" --wait --follow
+echo "── Building UI image ($UI_BC_NAME) [mode: $BUILD_MODE] ──"
+if [[ "$BUILD_MODE" == "binary" ]]; then
+  echo "  Uploading source from $UI_SRC_DIR ..."
+  oc start-build "$UI_BC_NAME" \
+    --from-dir="$UI_SRC_DIR" \
+    -n "$NAMESPACE" --wait --follow
+else
+  echo "  Triggering Git source build ..."
+  oc start-build "$UI_BC_NAME" \
+    -n "$NAMESPACE" --wait --follow
+fi
 echo ""
 
 echo "── Restarting deployment ──"

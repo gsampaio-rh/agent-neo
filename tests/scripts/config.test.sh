@@ -115,7 +115,29 @@ assert_fail "validate_config fails when ANTHROPIC_BASE_URL empty" test $? -eq 0
 )
 assert_pass "validate_config succeeds when ANTHROPIC_BASE_URL set" test $? -eq 0
 
-# Test 5: Environment variable override takes precedence
+# Test 5: BUILD_MODE defaults to git
+(
+  unset BUILD_MODE
+  _env="$PROJECT_ROOT/.env"
+  [[ -f "$_env" ]] && _had_env=true && mv "$_env" "$_env.bak"
+  source "$CONFIG"
+  [[ "${_had_env:-}" == "true" ]] && mv "$_env.bak" "$_env"
+  [[ "$BUILD_MODE" == "git" ]]
+)
+assert_pass "default BUILD_MODE is git" test $? -eq 0
+
+# Test 6: BUILD_MODE respects override
+(
+  export BUILD_MODE="binary"
+  _env="$PROJECT_ROOT/.env"
+  [[ -f "$_env" ]] && _had_env=true && mv "$_env" "$_env.bak"
+  source "$CONFIG"
+  [[ "${_had_env:-}" == "true" ]] && mv "$_env.bak" "$_env"
+  [[ "$BUILD_MODE" == "binary" ]]
+)
+assert_pass "BUILD_MODE override to binary" test $? -eq 0
+
+# Test 7: Environment variable override takes precedence
 (
   export NAMESPACE="custom-ns"
   _env="$PROJECT_ROOT/.env"

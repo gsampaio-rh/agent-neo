@@ -26,6 +26,7 @@ export NEO_AUTH_USER="${NEO_AUTH_USER:-}"
 export NEO_AUTH_PASS="${NEO_AUTH_PASS:-}"
 export CHALLENGE_PROMPT_FILE="${PROMPTS_DIR}/escape.txt"
 
+export BUILD_MODE="${BUILD_MODE:-git}"
 export AGENT_BC_NAME="${AGENT_BC_NAME:-neo-agent}"
 export UI_BC_NAME="${UI_BC_NAME:-neo-ui}"
 

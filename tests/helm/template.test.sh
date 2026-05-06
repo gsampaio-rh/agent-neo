@@ -179,6 +179,29 @@ assert_pass "agent-metrics Service rendered" grep -q 'agent-metrics' "$TMPDIR_TE
 # No otel-metrics port when telemetry disabled
 assert_fail "no otel-metrics port when telemetry off" grep -q 'otel-metrics' "$TMPDIR_TEST/telemetry-off.yaml"
 
+# --- Build source type tests ---
+
+# Default is Git source (from values.yaml)
+assert_pass "agent BuildConfig uses Git source type by default" grep -q 'type: Git' "$TMPDIR_TEST/full.yaml"
+assert_pass "agent BuildConfig has git uri" grep -q 'uri: https://github.com/gsampaio-rh/agent-neo.git' "$TMPDIR_TEST/full.yaml"
+assert_pass "agent BuildConfig has git ref" grep -q 'ref: main' "$TMPDIR_TEST/full.yaml"
+assert_pass "agent BuildConfig has contextDir build" grep -q 'contextDir: build' "$TMPDIR_TEST/full.yaml"
+assert_pass "UI BuildConfig has contextDir ui" grep -q 'contextDir: ui' "$TMPDIR_TEST/full.yaml"
+
+# Binary source when build.source.type is Binary
+helm template test-release "$CHART_DIR" \
+  --set config.anthropicBaseUrl=http://test.example.com \
+  --set build.source.type=Binary > "$TMPDIR_TEST/binary-build.yaml" 2>&1
+assert_pass "BuildConfig uses Binary source when type=Binary" grep -q 'type: Binary' "$TMPDIR_TEST/binary-build.yaml"
+assert_fail "no git uri when Binary source" grep -q 'uri: https://github.com' "$TMPDIR_TEST/binary-build.yaml"
+assert_fail "no contextDir when Binary source" grep -q 'contextDir:' "$TMPDIR_TEST/binary-build.yaml"
+
+# Custom git ref
+helm template test-release "$CHART_DIR" \
+  --set config.anthropicBaseUrl=http://test.example.com \
+  --set build.source.git.ref=develop > "$TMPDIR_TEST/custom-ref.yaml" 2>&1
+assert_pass "custom git ref propagated" grep -q 'ref: develop' "$TMPDIR_TEST/custom-ref.yaml"
+
 # --- Agent ServiceMonitor tests ---
 
 # Agent ServiceMonitor rendered when both telemetry (prometheus) and metrics.enabled are true
